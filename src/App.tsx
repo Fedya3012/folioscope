@@ -4,7 +4,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { Resizer } from "./components/Resizer";
 import { Organizer } from "./components/Organizer";
 import { Outline } from "./components/Outline";
-import { SEARCH_INPUT_ID, SearchPanel } from "./components/SearchPanel";
+import { SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
 import { Viewer } from "./components/Viewer";
 import { CombineDialog } from "./components/CombineDialog";
@@ -12,6 +12,9 @@ import { Home } from "./components/Home";
 import { Icon } from "./components/Icon";
 import { Settings } from "./components/Settings";
 import { routeDrop } from "./lib/recent";
+import { installShortcuts } from "./lib/shortcuts";
+import { registerAppCommands } from "./appCommands";
+import { Toaster } from "./components/Toaster";
 import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput } from "./lib/viewer";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { ViewControls } from "./components/ViewControls";
@@ -49,37 +52,9 @@ export function App() {
     return () => mq.removeEventListener("change", on);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Phím tắt theo bản thiết kế: Ctrl/⌘+\ ẩn hiện panel trái, Ctrl/⌘+Shift+\ panel phải, Ctrl/⌘ +/- zoom.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const mod = e.ctrlKey || e.metaKey;
-      if (!mod && e.key.toLowerCase() === "o" && !(e.target as HTMLElement).closest("input, textarea, [role=dialog]") && s.info) s.setMode("pages");
-      if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); void openRef.current(); }
-      if (mod && e.key === ",") { e.preventDefault(); s.setSettingsOpen(true); }
-      if (mod && e.key === "\\") { e.preventDefault(); s.togglePanel(e.shiftKey ? "right" : "left"); }
-      if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); s.zoomBy(1); }
-      if (mod && e.key === "-") { e.preventDefault(); s.zoomBy(-1); }
-      if (mod && e.key === "0") { e.preventDefault(); s.setFit("page"); }
-      if (mod && e.key === "1") { e.preventDefault(); s.setZoom(1); }
-      if (mod && e.key === "2") { e.preventDefault(); s.setFit("width"); }
-      if (mod && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        if (!s.leftOpen || s.leftTab !== "search") useStore.setState({ leftOpen: true, leftTab: "search" });
-        else document.getElementById(SEARCH_INPUT_ID)?.focus();
-      }
-      // Phím điều hướng trang chỉ khi không đang gõ vào ô nhập.
-      const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, select") || mod || e.altKey || !s.info) return;
-      const last = s.info.page_count - 1;
-      if (e.key === "PageDown" || (s.viewMode === "single" && e.key === "ArrowRight")) { e.preventDefault(); s.goToPage(Math.min(last, s.currentPage + 1)); }
-      if (e.key === "PageUp" || (s.viewMode === "single" && e.key === "ArrowLeft")) { e.preventDefault(); s.goToPage(Math.max(0, s.currentPage - 1)); }
-      if (e.key === "Home") { e.preventDefault(); s.goToPage(0); }
-      if (e.key === "End") { e.preventDefault(); s.goToPage(last); }
-      if (e.key === "Escape" && s.search.hits.length) s.runSearch("", s.search.matchCase);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
+  // Một bộ nghe phím duy nhất; các lệnh nằm ở appCommands.ts (và mỗi màn hình đăng ký thêm lệnh của nó).
+  useEffect(() => installShortcuts(), []);
+  useEffect(() => registerAppCommands(() => void openRef.current()), []);
 
   const openRef = useRef<() => Promise<void>>(async () => {});
   // null = đóng; mảng = mở hộp thoại Gộp file với các file ban đầu này.
@@ -229,6 +204,7 @@ export function App() {
       </footer>
       </>)}
       <PasswordDialog />
+      <Toaster />
       {s.settingsOpen && <Settings />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
       {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}

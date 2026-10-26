@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store";
+import { registerCommands } from "../lib/shortcuts";
+import { toast } from "../lib/toast";
 import { useOrganizer } from "../organizerStore";
 import { bucketFor, cachedThumb, requestThumb } from "../lib/thumbs";
 import { displaySize, dropIndex, intersects, type PageItem, type Rect } from "../lib/organizer";
@@ -66,7 +68,7 @@ export function Organizer() {
   const load = useStore((s) => s.load);
   const setMode = useStore((s) => s.setMode);
   const o = useOrganizer();
-  const { items, selected, thumb, busy, toast } = o;
+  const { items, selected, thumb, busy } = o;
 
   useEffect(() => { o.sync(path, info); }, [path, info]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -216,29 +218,14 @@ export function Organizer() {
     return () => s.removeEventListener("wheel", onWheel);
   }, [items.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Phím tắt: Delete xoá, Ctrl+A chọn hết, Ctrl+Z / Ctrl+Y hoàn tác, R xoay phải, Shift+R xoay trái, Esc bỏ chọn.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, [role=dialog]")) return;
-      const mod = e.ctrlKey || e.metaKey;
-      const k = e.key.toLowerCase();
-      if (mod && k === "a") { e.preventDefault(); o.selectAll(); }
-      else if (mod && k === "z") { e.preventDefault(); e.shiftKey ? o.redo() : o.undo(); }
-      else if (mod && k === "y") { e.preventDefault(); o.redo(); }
-      else if (!mod && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); o.remove(); }
-      else if (!mod && k === "r") { e.preventDefault(); o.rotate(e.shiftKey ? -90 : 90); }
-      else if (e.key === "Escape") o.clearSelection();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [o]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => o.dismissToast(), toast.kind === "error" ? 9000 : 6000);
-    return () => window.clearTimeout(t);
-  }, [toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Phím tắt của Trang (Ctrl+Z / Ctrl+Y do hệ hoàn tác toàn cục lo): Delete xoá, Ctrl+A chọn hết, R xoay phải, Shift+R xoay trái, Esc bỏ chọn.
+  useEffect(() => registerCommands([
+    { id: "pages.selectAll", label: "Chọn tất cả trang", group: "Trang", keys: ["Mod+A"], run: () => o.selectAll() },
+    { id: "pages.delete", label: "Xoá trang đã chọn", group: "Trang", keys: ["Delete", "Backspace"], run: () => o.remove() },
+    { id: "pages.rotateRight", label: "Xoay phải", group: "Trang", keys: ["R"], run: () => o.rotate(90) },
+    { id: "pages.rotateLeft", label: "Xoay trái", group: "Trang", keys: ["Shift+R"], run: () => o.rotate(-90) },
+    { id: "pages.clearSelection", label: "Bỏ chọn", group: "Trang", keys: ["Escape"], run: () => { o.clearSelection(); return false; } },
+  ]), [o]);
 
   const onSave = async () => {
     const out = await o.save();
@@ -247,7 +234,7 @@ export function Organizer() {
     await load(out);
     const st = useStore.getState();
     o.sync(st.path, st.info);
-    useOrganizer.setState({ toast: { kind: st.error ? "error" : "info", text: st.error ?? `Đã lưu ${out}` } });
+    if (st.error) toast.error(st.error); else toast.success(`Đã lưu ${out}`);
   };
 
   if (!path || !info) {
@@ -348,13 +335,6 @@ export function Organizer() {
         </div>
       )}
 
-      {toast && (
-        <div className={`otoast ${toast.kind}`} role="status">
-          <span>{toast.text}</span>
-          {toast.undo && <button onClick={() => o.undo()}>Hoàn tác</button>}
-          <button aria-label="Đóng" onClick={o.dismissToast}>✕</button>
-        </div>
-      )}
 
       {splitOpen && <SplitDialog total={items.length} onClose={() => setSplitOpen(false)} />}
     </div>

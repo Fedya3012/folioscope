@@ -158,7 +158,11 @@ pub fn save_annotations(path: String, out: String, items: Vec<crate::annotations
     let pdfium = bind()?;
     let doc = load(pdfium, &path)?;
     let n = crate::annotations::apply(&doc, &items).map_err(|e| PdfError::Save(e.to_string()))?;
-    doc.save_to_file(&out).map_err(|e| PdfError::Save(e.to_string()))?;
+    let out_path = std::path::Path::new(&out);
+    let tmp = crate::fsutil::tmp_path(out_path);
+    doc.save_to_file(&tmp).map_err(|e| { let _ = std::fs::remove_file(&tmp); PdfError::Save(e.to_string()) })?;
+    drop(doc); // Windows không cho đổi tên khi file tạm còn mở
+    crate::fsutil::commit_tmp(&tmp, out_path, true).map_err(|e| { let _ = std::fs::remove_file(&tmp); PdfError::Save(e.to_string()) })?;
     Ok(n)
 }
 

@@ -97,7 +97,7 @@ pub fn export_pages(pages: Vec<PageRef>, output: String) -> Result<u32, PdfError
         dest.save_to_file(&tmp).map_err(|e| PdfError::Render(e.to_string()))?;
     } // đóng mọi tài liệu trước khi đổi tên (Windows không cho ghi đè file đang mở)
 
-    std::fs::rename(&tmp, &output).map_err(|e| {
+    crate::fsutil::commit_tmp(std::path::Path::new(&tmp), std::path::Path::new(&output), true).map_err(|e| {
         let _ = std::fs::remove_file(&tmp);
         PdfError::Render(format!("không ghi được {output}: {e}"))
     })?;

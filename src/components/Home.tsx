@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { greeting } from "../lib/settings";
 import { folderOf, formatBytes, relativeTime, sortRecent, type RecentFile, type RecentSort } from "../lib/recent";
+import { db } from "../lib/db";
 import { requestThumb } from "../lib/thumbs";
 import { useStore } from "../store";
 import { Icon, type IconName } from "./Icon";
@@ -93,9 +94,9 @@ export function Home({ onOpenDialog, onOpenPath, onCombine }: HomeProps) {
   const { recent, settings, error, info, setView, setSettingsOpen, clearRecent } = useStore();
   const [section, setSection] = useState<Section>("home");
   const [layout, setLayout] = useState<Layout>(() => {
-    try { return localStorage.getItem("folioscope.recentLayout") === "list" ? "list" : "grid"; } catch { return "grid"; }
+    return db.getItem("folioscope.recentLayout") === "list" ? "list" : "grid";
   });
-  const chooseLayout = (l: Layout) => { setLayout(l); try { localStorage.setItem("folioscope.recentLayout", l); } catch { /* bỏ qua */ } };
+  const chooseLayout = (l: Layout) => { setLayout(l); db.setItem("folioscope.recentLayout", l); };
   const now = Date.now();
   const name = settings.userName.trim();
   // Mới mở nhất lên đầu; file đã ghim luôn đứng trước.

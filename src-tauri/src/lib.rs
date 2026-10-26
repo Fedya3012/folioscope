@@ -1,6 +1,8 @@
 mod annotations;
 mod combine;
 mod commands;
+mod db;
+mod fsutil;
 mod launch;
 mod organizer;
 mod pdf;
@@ -27,6 +29,9 @@ pub fn run() {
         .manage(Arc::new(combine::CancelFlag::default()))
         .manage(Arc::new(launch::Launch::default()))
         .setup(|app| {
+            use tauri::Manager;
+            let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+            app.manage(db::Db::open(&data_dir.join("folioscope.sqlite"))?);
             let args: Vec<String> = std::env::args().collect();
             launch::handle_args(app.handle(), &args);
             Ok(())
@@ -46,7 +51,10 @@ pub fn run() {
             shell_menu::shell_menu_status,
             shell_menu::shell_menu_install,
             shell_menu::shell_menu_uninstall,
-            organizer::export_pages
+            organizer::export_pages,
+            db::db_load_all,
+            db::db_set,
+            db::db_remove
         ])
         .run(tauri::generate_context!())
         .expect("không khởi động được Folioscope");

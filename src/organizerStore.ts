@@ -7,8 +7,8 @@ import {
   removeItems, reverseItems, rotateItems, splitFileName, undoHistory,
   type History, type PageItem,
 } from "./lib/organizer";
+import { toast } from "./lib/toast";
 
-export interface Toast { text: string; kind: "info" | "error"; undo?: boolean }
 
 let nextId = 1;
 const newId = () => `pg${nextId++}`;
@@ -29,13 +29,11 @@ interface OrganizerState {
   history: History<PageItem>;
   thumb: number;
   busy: boolean;
-  toast: Toast | null;
 
   /** Dựng lại danh sách khi tài liệu đang mở đổi; giữ nguyên nếu vẫn là tài liệu đó. */
   sync(path: string | null, info: DocumentInfo | null): void;
   reset(): void;
   setThumb(px: number): void;
-  dismissToast(): void;
 
   click(id: string, mod: { toggle: boolean; range: boolean }): void;
   setSelection(ids: Iterable<string>): void;
@@ -60,7 +58,8 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
   /** Ghi một thay đổi vào lịch sử rồi áp dụng. */
   const commit = (items: PageItem[], patch: Partial<OrganizerState> = {}) =>
     set((s) => ({ items, history: pushHistory(s.history, s.items), ...patch }));
-  const fail = (e: unknown) => set({ busy: false, toast: { kind: "error", text: String(e) } });
+  const fail = (e: unknown) => { set({ busy: false }); toast.error(String(e)); };
+  const undoAction = { label: "Hoàn tác", run: () => get().undo() };
   const insertionPoint = () => {
     const { items, selected } = get();
     let last = -1;
@@ -70,22 +69,21 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
 
   return {
     baseInfo: null, basePath: null, items: [], selected: new Set(), anchor: null,
-    history: { past: [], future: [] }, thumb: 180, busy: false, toast: null,
+    history: { past: [], future: [] }, thumb: 180, busy: false,
 
     sync(path, info) {
       if (info === get().baseInfo) return;
       if (!path || !info) { get().reset(); return; }
       set({
         baseInfo: info, basePath: path, items: itemsOf(path, info), selected: new Set(), anchor: null,
-        history: { past: [], future: [] }, toast: null,
+        history: { past: [], future: [] },
       });
     },
     reset: () => set({
       baseInfo: null, basePath: null, items: [], selected: new Set(), anchor: null,
-      history: { past: [], future: [] }, toast: null,
+      history: { past: [], future: [] },
     }),
     setThumb: (thumb) => set({ thumb }),
-    dismissToast: () => set({ toast: null }),
 
     click(id, { toggle, range }) {
       const { items, selected, anchor } = get();
@@ -113,14 +111,14 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
       const { items, selected } = get();
       if (selected.size === 0) return;
       if (selected.size >= items.length) {
-        set({ toast: { kind: "error", text: "Tài liệu phải còn ít nhất một trang." } });
+        toast.error("Tài liệu phải còn ít nhất một trang.");
         return;
       }
       const n = selected.size;
       commit(removeItems(items, selected), {
         selected: new Set(), anchor: null,
-        toast: { kind: "info", text: `Đã xoá ${n} trang`, undo: true },
       });
+      toast.success(`Đã xoá ${n} trang`, undoAction);
     },
     moveSelected(at, ids) {
       const { items, selected } = get();
@@ -137,12 +135,12 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
     undo() {
       const { history, items } = get();
       const r = undoHistory(history, items);
-      if (r) set({ items: r.items, history: r.history, selected: new Set(), toast: null });
+      if (r) set({ items: r.items, history: r.history, selected: new Set() });
     },
     redo() {
       const { history, items } = get();
       const r = redoHistory(history, items);
-      if (r) set({ items: r.items, history: r.history, selected: new Set(), toast: null });
+      if (r) set({ items: r.items, history: r.history, selected: new Set() });
     },
 
     insertBlank() {
@@ -162,8 +160,8 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
         const added = itemsOf(path, info);
         commit(insertItems(get().items, insertionPoint(), added), {
           busy: false, selected: new Set(added.map((p) => p.id)), anchor: added[0]?.id ?? null,
-          toast: { kind: "info", text: `Đã chèn ${added.length} trang`, undo: true },
         });
+        toast.success(`Đã chèn ${added.length} trang`, undoAction);
       } catch (e) { fail(e); }
     },
 
@@ -191,7 +189,8 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
         if (!out) return;
         set({ busy: true });
         await exportPages(toRefs(picked), out);
-        set({ busy: false, toast: { kind: "info", text: `Đã trích ${picked.length} trang ra ${out}` } });
+        set({ busy: false });
+        toast.success(`Đã trích ${picked.length} trang ra ${out}`);
       } catch (e) { fail(e); }
     },
     async split(mode, value) {
@@ -201,7 +200,7 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
       try {
         groups = mode === "every" ? chunkEvery(Number(value), items.length) : parseRanges(value, items.length);
       } catch (e) {
-        set({ toast: { kind: "error", text: (e as Error).message } });
+        toast.error((e as Error).message);
         return false;
       }
       try {
@@ -213,7 +212,8 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
         for (const [n, group] of groups.entries()) {
           await exportPages(toRefs(group.map((i) => items[i])), `${dir}${sep}${partName(base, n + 1, groups.length)}`);
         }
-        set({ busy: false, toast: { kind: "info", text: `Đã tách thành ${groups.length} file trong ${dir}` } });
+        set({ busy: false });
+        toast.success(`Đã tách thành ${groups.length} file trong ${dir}`);
         return true;
       } catch (e) { fail(e); return false; }
     },

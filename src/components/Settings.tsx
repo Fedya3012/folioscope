@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ACCENTS, RECENT_LIMITS, UI_SIZES, type Settings as S } from "../lib/settings";
+import { toast } from "../lib/toast";
 import { useStore } from "../store";
 import { Icon } from "./Icon";
 
@@ -55,17 +56,12 @@ export function Settings() {
   const { settings: st, updateSettings, resetSettings, clearRecent, setSettingsOpen } = useStore();
   const [group, setGroup] = useState<Group>("general");
   const [query, setQuery] = useState("");
-  const [toast, setToast] = useState(false);
   const [confirm, setConfirm] = useState<"reset" | "recent" | null>(null);
-  const timer = useRef<number>(0);
   const close = () => setSettingsOpen(false);
 
-  useEffect(() => () => window.clearTimeout(timer.current), []);
   const set = (patch: Partial<S>) => {
     updateSettings(patch);
-    setToast(true);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setToast(false), 2000);
+    toast.success("Đã lưu");
   };
 
   useEffect(() => {
@@ -154,7 +150,6 @@ export function Settings() {
               <p className="set-planned"><strong>{shown.length ? "Sắp có thêm" : "Sắp có"}:</strong> {PLANNED[group]}</p>
             )}
           </div>
-          {toast && <div className="toast" role="status">Đã lưu</div>}
         </section>
       </div>
     </div>
