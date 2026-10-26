@@ -4,7 +4,7 @@ body { background: var(--bg-app); color: var(--text-primary); font: 400 var(--fs
 button { font: inherit; color: inherit; }
 :focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--focus-ring); }
 
-.shell { display: grid; height: 100%; grid-template-rows: var(--h-titlebar) var(--h-toolbar) minmax(0, 1fr) var(--h-status); }
+.shell { display: grid; height: 100%; grid-template-rows: var(--h-titlebar) var(--h-toolbar) auto minmax(0, 1fr) var(--h-status); }
 .titlebar, .toolbar, .statusbar { display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--surface-1); }
 .titlebar { background: var(--surface-2); border-bottom: 1px solid var(--border-default); }
 .toolbar { border-bottom: 1px solid var(--border-default); }

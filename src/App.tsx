@@ -5,6 +5,8 @@ import { SEARCH_INPUT_ID, SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
 import { Viewer } from "./components/Viewer";
 import { parsePageInput } from "./lib/viewer";
+import { AnnotateBar } from "./annotations/AnnotateBar";
+import { AnnotationLayer } from "./annotations/AnnotationLayer";
 import { pickPdf } from "./lib/api";
 import { useStore, type Mode } from "./store";
 
@@ -82,6 +84,8 @@ export function App() {
         <button className="btn ghost" aria-pressed={s.rightOpen} onClick={() => s.togglePanel("right")}>Thuộc tính</button>
       </div>
 
+      <div className="annot-slot"><AnnotateBar /></div>
+
       <div className="workspace">
         <nav className="rail" aria-label="Điều hướng">
           <button aria-label="Hình thu nhỏ" title="Hình thu nhỏ" aria-pressed={s.leftOpen && s.leftTab === "thumbs"} onClick={() => s.openLeftTab("thumbs")}>▤</button>
@@ -101,7 +105,7 @@ export function App() {
         )}
 
         <main className="canvas">
-          {s.info ? <Viewer /> : (
+          {s.info ? <><Viewer /><AnnotationLayer /></> : (
             <div className="empty">
               <h1>Mở file PDF đầu tiên của bạn</h1>
               <p>{s.error ?? "Chọn một file để xem. Kéo thả sẽ có ở bản sau."}</p>

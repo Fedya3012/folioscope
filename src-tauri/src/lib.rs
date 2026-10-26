@@ -1,3 +1,4 @@
+mod annotations;
 mod pdf;
 mod viewer;
 
@@ -5,7 +6,10 @@ mod viewer;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![pdf::open_document, pdf::render_page,
+        .invoke_handler(tauri::generate_handler![
+            pdf::open_document,
+            pdf::render_page,
+            pdf::save_annotations,
             viewer::get_outline,
             viewer::get_text_runs,
             viewer::search_text
