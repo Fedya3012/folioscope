@@ -444,7 +444,8 @@ mod tests {
         let r = save_content_edits(path.clone(), out.clone(), edits).unwrap();
         assert_eq!(r.applied, 2);
         let after = kinds(&out);
-        let texts: Vec<_> = after.iter().filter_map(|o| o.text.clone()).collect();
+        // Phông Arial trên macOS ánh xạ dấu cách thành U+00A0 khi đọc lại chữ; coi như cùng một dấu cách.
+        let texts: Vec<_> = after.iter().filter_map(|o| o.text.as_ref().map(|t| t.replace('\u{a0}', " "))).collect();
         assert_eq!(texts, vec!["Xin chào Việt Nam".to_string()], "chữ cũ phải mất, chữ mới có dấu");
         assert!(after.iter().all(|o| o.kind != "shape"), "hình đã xoá");
         // Vị trí chữ mới trùng chữ cũ (cùng đường đáy, cùng mép trái).
