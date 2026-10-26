@@ -1,8 +1,10 @@
+mod annotations;
 mod combine;
 mod commands;
 mod launch;
 mod pdf;
 mod shell_menu;
+mod viewer;
 
 use std::sync::Arc;
 
@@ -31,6 +33,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             pdf::open_document,
             pdf::render_page,
+            pdf::save_annotations,
+            viewer::get_outline,
+            viewer::get_text_runs,
+            viewer::search_text,
             commands::probe_files,
             commands::office_status,
             commands::combine_files,
