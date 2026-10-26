@@ -150,7 +150,7 @@ Chưa bắt đầu gói nào. Mỗi gói dưới đây là một PR hoặc một
 
 **Nguyên tắc sắp thứ tự:** làm trước thứ bạn dùng hằng ngày, làm trước thứ làm nền cho nhiều thứ khác (SQLite, mô hình tài liệu, hệ component), để phần khó nhất (sửa chữ) sau cùng khi nền đã vững.
 
-### Gói A: Nền dùng chung (làm đầu tiên)
+### Gói A: Nền dùng chung (đã làm, xem `docs/foundation.md`)
 - 1.32 SQLite, 2.10 hệ toast và component chuẩn, 1.31 lưu atomic, 2.11 danh sách lệnh và phím tắt dùng chung (nền cho Command Palette).
 - Cỡ tổng: M đến L. Mở khoá cho B, C, D, F.
 

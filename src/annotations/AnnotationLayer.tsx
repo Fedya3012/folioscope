@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as RPE } from "react";
 import { createPortal } from "react-dom";
+import { registerCommands } from "../lib/shortcuts";
 import { useStore } from "../store";
 import { bounds, clamp01, rectFrom, resizeTo, simplify, translate } from "./geometry";
 import { useAnnot, newId } from "./store";
@@ -30,20 +31,16 @@ export function AnnotationLayer() {
   // Mở file khác thì bỏ chú thích của file cũ.
   useEffect(() => { reset(); }, [path, reset]);
 
+  // Phím của chế độ Ghi chú đăng ký vào hệ phím tắt chung (Ctrl+Z/Y do hệ hoàn tác toàn cục lo).
   useEffect(() => {
     if (mode !== "annotate") return;
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.closest("textarea, input")) return;
-      const a = useAnnot.getState();
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? a.redo() : a.undo(); }
-      else if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); a.redo(); }
-      else if ((e.key === "Delete" || e.key === "Backspace") && a.selectedId) { e.preventDefault(); a.remove(a.selectedId); }
-      else if (e.key === "Escape") { a.select(null); a.setTool("select"); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return registerCommands([
+      {
+        id: "annotate.delete", label: "Xoá ghi chú đang chọn", group: "Ghi chú", keys: ["Delete", "Backspace"],
+        run: () => { const a = useAnnot.getState(); if (!a.selectedId) return false; a.remove(a.selectedId); },
+      },
+      { id: "annotate.escape", label: "Bỏ chọn ghi chú", group: "Ghi chú", keys: ["Escape"], run: () => { const a = useAnnot.getState(); a.select(null); a.setTool("select"); return false; } },
+    ]);
   }, [mode]);
 
   if (mode !== "annotate" && mode !== "view" && mode !== "edit") return null;

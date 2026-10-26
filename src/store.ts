@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { LEFT, RIGHT, ZOOM_MAX, ZOOM_MIN, clamp, resolvePanelWidth, stepZoom } from "./lib/layout";
 import { getOutline, openDocument, probeFiles, searchText, type DocumentInfo, type OutlineItem, type SearchHit } from "./lib/api";
+import { db } from "./lib/db";
 import { addRecent, parseRecent, removeRecent, togglePin, trimRecent, type RecentFile } from "./lib/recent";
 import { DEFAULT_SETTINGS, initialZoom, resolveTheme, sanitizeSettings, type Settings } from "./lib/settings";
 import { isPageTheme, passwordFailure, stepIndex, type Fit, type PageTheme, type ViewMode } from "./lib/viewer";
@@ -19,12 +20,8 @@ const noSearch: SearchState = { query: "", matchCase: false, hits: [], active: -
 
 const SETTINGS_KEY = "folioscope.settings", RECENT_KEY = "folioscope.recent";
 
-function readJson(key: string): unknown {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; /* chạy được dù không có localStorage */ }
-}
-function writeJson(key: string, value: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* bỏ qua */ }
-}
+const readJson = (key: string): unknown => db.getJson(key);
+const writeJson = (key: string, value: unknown) => db.setJson(key, value);
 
 const systemDark = () => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
 
@@ -32,19 +29,14 @@ const savedSettings = (): Settings => {
   const raw = readJson(SETTINGS_KEY);
   if (raw) return sanitizeSettings(raw);
   // Bản cũ chỉ lưu chủ đề sáng/tối riêng.
-  try {
-    const t = localStorage.getItem("folioscope.theme");
-    if (t === "dark" || t === "light") return { ...DEFAULT_SETTINGS, theme: t };
-  } catch { /* bỏ qua */ }
+  const t = db.getItem("folioscope.theme");
+  if (t === "dark" || t === "light") return { ...DEFAULT_SETTINGS, theme: t };
   return DEFAULT_SETTINGS;
 };
 
 const savedPageTheme = (): PageTheme => {
-  try {
-    const t = localStorage.getItem("folioscope.pageTheme");
-    if (isPageTheme(t)) return t;
-  } catch { /* chạy được dù không có localStorage */ }
-  return "normal";
+  const t = db.getItem("folioscope.pageTheme");
+  return isPageTheme(t) ? t : "normal";
 };
 
 /** File đang chờ mật khẩu; `wrong` là lần nhập trước bị sai. */
@@ -110,7 +102,7 @@ export const useStore = create<State>((set, get) => ({
     get().updateSettings({ theme: get().theme === "dark" ? "light" : "dark" });
   },
   setPageTheme(pageTheme) {
-    try { localStorage.setItem("folioscope.pageTheme", pageTheme); } catch { /* bỏ qua */ }
+    db.setItem("folioscope.pageTheme", pageTheme);
     set({ pageTheme });
   },
   cancelPassword: () => set({ passwordPrompt: null }),

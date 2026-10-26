@@ -152,7 +152,7 @@ fn write_atomic(doc: &mut lopdf::Document, out: &std::path::Path, modern: bool) 
         if modern { doc.save_modern(&mut f).map_err(std::io::Error::other)?; } else { doc.save_to(&mut f)?; }
         std::io::Write::flush(&mut f)?;
         drop(f);
-        std::fs::rename(&tmp, out)
+        crate::fsutil::commit_tmp(&tmp, out, true)
     })();
     if let Err(e) = res {
         let _ = std::fs::remove_file(&tmp);
