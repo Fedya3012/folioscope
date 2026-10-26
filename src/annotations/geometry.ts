@@ -25,6 +25,7 @@ export function translate(a: Annotation, dx: number, dy: number): Annotation {
     ...a,
     rect: a.rect && { ...a.rect, x: a.rect.x + dx, y: a.rect.y + dy },
     points: a.points?.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+    rects: a.rects?.map((r) => ({ ...r, x: r.x + dx, y: r.y + dy })),
   };
 }
 

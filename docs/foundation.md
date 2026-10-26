@@ -30,3 +30,10 @@
 - `isDirty(path)` cho biết tab có thay đổi chưa lưu (hiện chấm trên tab và hỏi trước khi đóng). Tính năng mới có thay đổi chưa lưu nên đưa vào đây.
 - Vị trí đọc lần cuối của từng file (trang, zoom, kiểu xem) lưu ở khoá `folioscope.positions`, tối đa 200 file.
 - Phím tắt: `Ctrl+W` đóng tab, `Ctrl+Tab` / `Ctrl+Shift+Tab` chuyển tab.
+
+## Ghi chú (Gói F)
+- `src/annotations/snap.ts`: kéo chuột trên chữ → các hình chữ nhật bám từng dòng (dùng `getTextRuns` của Viewer, không sửa Viewer). Trang ảnh quét không có lớp chữ thì dùng khung tự do.
+- `src/annotations/measure.ts`: đo khoảng cách, chu vi, diện tích theo kích thước trang (điểm PDF) và tỉ lệ (`folioscope.measureScale`).
+- `src/annotations/export.ts`: đổi chú thích trong app thành danh sách phẳng cho Rust (`save_annotations`): đánh dấu nhiều dòng, bình luận kèm trả lời, tem, số đo. Phía Rust không đổi.
+- Bảng phải `AnnotationPanel.tsx`: thuộc tính đối tượng đang chọn, bình luận và trả lời, danh sách bình luận. Phím công cụ (H, U, S, N, T, R, E, L, A, P, K, D, M, G) đăng ký qua `registerCommands` khi ở chế độ Ghi chú; mọi sửa đổi đi qua `commit` nên Ctrl+Z hoàn tác được.
+- Giới hạn: PDF chuẩn lưu trả lời bình luận gộp trong nội dung ghi chú (chưa có liên kết cha–con IRT); tem là khung + chữ chứ chưa phải tem ảnh.

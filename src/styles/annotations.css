@@ -26,3 +26,30 @@
 .annot-text:focus { border-color: var(--primary); }
 .annot-text.static { border: 0; white-space: pre-wrap; overflow: hidden; pointer-events: none; }
 .annot-slot { min-height: 0; }
+
+.annot-bar select { height: 28px; border: 1px solid var(--border-default); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); padding: 0 6px; }
+.annot-bar .measure-opts { display: inline-flex; align-items: center; gap: 8px; }
+.annot-bar .measure-opts em { font-style: normal; color: var(--text-secondary); font-size: var(--fs-small); white-space: nowrap; }
+
+.prop { display: flex; flex-direction: column; gap: 10px; }
+.prop-kind { margin: 0; font-weight: 600; color: var(--text-primary); }
+.prop-meta { margin: 0; font-size: var(--fs-small); color: var(--text-secondary); }
+.prop-h { margin: 8px 0 0; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.prop-measure { margin: 0; font: 600 18px/24px var(--font-mono); color: var(--text-primary); }
+.prop-swatches { display: flex; gap: 8px; }
+.prop-row { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-small); }
+.prop-row input, .prop-row select, .prop-row textarea, .thread textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--border-default); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); padding: 6px 8px; font: inherit; }
+.prop-row input[type="range"] { padding: 0; }
+.prop-scale { display: flex; align-items: center; gap: 6px; }
+.prop-scale select { width: auto; }
+.prop-actions { display: flex; gap: 8px; }
+.prop .danger { color: var(--danger); }
+.thread { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border-subtle); padding-top: 10px; }
+.reply { background: var(--surface-2); border-radius: var(--r-md); padding: 6px 8px; }
+.reply span { color: var(--text-secondary); font-size: var(--fs-small); }
+.reply p { margin: 2px 0 0; white-space: pre-wrap; }
+.comment-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.comment-list button { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 8px; border: 1px solid var(--border-subtle); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); cursor: pointer; }
+.comment-list button:hover { background: var(--state-hover); }
+.comment-list .c-top, .comment-list .c-replies { font-size: var(--fs-small); color: var(--text-secondary); }
+.comment-list .c-text { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }

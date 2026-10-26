@@ -1,5 +1,6 @@
 import { bounds } from "./geometry";
 import { useAnnot } from "./store";
+import { useStore } from "../store";
 import { COLORS, type Annotation } from "./types";
 
 /** Thanh nổi hiện phía trên đối tượng đang chọn: đổi màu, nét, sửa chữ, nhân đôi, xoá. */
@@ -12,7 +13,7 @@ export function FloatingToolbar({ a }: { a: Annotation }) {
     ? { left: `${left}%`, top: `${(b.y + b.h) * 100}%`, marginTop: 34 }
     : { left: `${left}%`, top: `${b.y * 100}%`, marginTop: -44 };
   const hasText = a.kind === "note" || a.kind === "text";
-  const hasStroke = a.kind !== "highlight" && a.kind !== "note";
+  const hasStroke = a.kind !== "highlight" && a.kind !== "note" && a.kind !== "stamp";
 
   return (
     <div className="float-toolbar" style={style} role="toolbar" aria-label="Thuộc tính ghi chú" onPointerDown={(e) => e.stopPropagation()}>
@@ -30,6 +31,7 @@ export function FloatingToolbar({ a }: { a: Annotation }) {
       )}
       <span className="sep" />
       {hasText && <button onClick={() => edit(a.id)}>Sửa chữ</button>}
+      {a.kind === "note" && <button onClick={() => useStore.setState({ rightOpen: true })}>Trả lời</button>}
       <button onClick={() => duplicate(a.id)}>Nhân đôi</button>
       <button className="danger" onClick={() => remove(a.id)}>Xoá</button>
     </div>
