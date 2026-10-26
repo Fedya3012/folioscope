@@ -2,6 +2,7 @@ mod annotations;
 mod combine;
 mod commands;
 mod launch;
+mod organizer;
 mod pdf;
 mod shell_menu;
 mod viewer;
@@ -45,6 +46,7 @@ pub fn run() {
             shell_menu::shell_menu_status,
             shell_menu::shell_menu_install,
             shell_menu::shell_menu_uninstall,
+            organizer::export_pages
         ])
         .run(tauri::generate_context!())
         .expect("không khởi động được Folioscope");
