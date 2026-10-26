@@ -10,6 +10,7 @@ import { Viewer } from "./components/Viewer";
 import { CombineDialog } from "./components/CombineDialog";
 import { Home } from "./components/Home";
 import { Icon } from "./components/Icon";
+import { ConfirmClose, TabBar } from "./components/TabBar";
 import { Settings } from "./components/Settings";
 import { CommandPalette } from "./components/CommandPalette";
 import { usePalette } from "./lib/paletteStore";
@@ -20,6 +21,7 @@ import { registerAppCommands } from "./appCommands";
 import { Toaster } from "./components/Toaster";
 import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput } from "./lib/viewer";
 import { PasswordDialog } from "./components/PasswordDialog";
+import { OfficeInstallDialog } from "./components/OfficeInstallDialog";
 import { ViewControls } from "./components/ViewControls";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
@@ -84,7 +86,8 @@ export function App() {
   useEffect(() => {
     const sub = getCurrentWebview().onDragDropEvent((e) => {
       const t = e.payload.type;
-      if (combineOpen.current) { setDragOver(false); return; }
+      // Hộp thoại Gộp file và màn hình Trang tự xử lý file thả vào (Trang chèn đúng chỗ thả).
+      if (combineOpen.current || useStore.getState().mode === "pages") { setDragOver(false); return; }
       if (t === "enter" || t === "over") setDragOver(true);
       else if (t === "leave") setDragOver(false);
       else if (t === "drop") {
@@ -100,16 +103,12 @@ export function App() {
   const open = async () => { const p = await pickPdf(); if (p) await s.load(p); };
   openRef.current = open;
   const onHome = s.view === "home" || !s.info;
-  const fileName = s.path?.split(/[\\/]/).pop();
 
   return (
     <div className={`shell${onHome ? " on-home" : ""}`}>
       <header className="titlebar">
         <strong>Folioscope</strong>
-        <div className="tabs" role="tablist" aria-label="Tài liệu" style={{ display: "contents" }}>
-          <button role="tab" className="tab home-tab" aria-selected={onHome} aria-label="Home" title="Home" onClick={() => s.setView("home")}><Icon name="home" /></button>
-          {fileName && <button role="tab" className="tab" aria-selected={!onHome} title={s.path ?? undefined} onClick={() => s.setView("doc")}>{fileName}</button>}
-        </div>
+        <TabBar onOpen={() => void openRef.current()} />
         <span className="spacer" />
         <button className="btn ghost icon" aria-label="Cài đặt (Ctrl+,)" title="Cài đặt (Ctrl+,)" onClick={() => s.setSettingsOpen(true)}><Icon name="settings" /></button>
         <button className="btn ghost icon" aria-label="Đổi giao diện sáng/tối" onClick={s.toggleTheme}>{s.theme === "dark" ? "☀" : "☾"}</button>
@@ -208,11 +207,14 @@ export function App() {
       </footer>
       </>)}
       <PasswordDialog />
+      <OfficeInstallDialog />
+      <ConfirmClose />
       <Toaster />
       {s.settingsOpen && <Settings />}
       {paletteOpen && <CommandPalette />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
-      {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}
+      {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)}
+        onOpenInOrganizer={(paths) => void useOrganizer.getState().openFiles(paths)} />}
     </div>
   );
 }

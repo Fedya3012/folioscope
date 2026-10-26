@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { FileProbe } from "./api";
-import { appendUnique, formatBytes, makeItem, moveItem, sanitizeFileName, suggestOutput } from "./combine";
+import { appendUnique, applyProbe, blocked, formatBytes, makeItem, moveItem, sanitizeFileName, suggestOutput } from "./combine";
 
 const probe = (path: string, over: Partial<FileProbe> = {}): FileProbe => ({
-  path, name: path.split(/[\\/]/).pop()!, kind: "pdf", size: 1, pages: 1, error: null, ...over,
+  path, name: path.split(/[\\/]/).pop()!, kind: "pdf", size: 1, pages: 1, error: null, needs_password: false, ...over,
 });
 
 describe("moveItem", () => {
@@ -49,5 +49,24 @@ describe("formatBytes", () => {
     expect(formatBytes(900)).toBe("900 B");
     expect(formatBytes(2048)).toBe("2 KB");
     expect(formatBytes(5 * 1024 * 1024)).toBe("5.0 MB");
+  });
+});
+
+describe("mật khẩu trong hàng", () => {
+  it("nhập đúng mật khẩu thì hàng hết lỗi, giữ vị trí, tên dấu trang và nhớ mật khẩu", () => {
+    const locked = probe("/x/khoa.pdf", { pages: null, error: "file có mật khẩu, hãy nhập mật khẩu", needs_password: true });
+    let list = appendUnique([], [probe("/x/a.pdf"), locked, probe("/x/c.pdf")]);
+    expect(blocked(list)).toHaveLength(1);
+    list[1] = { ...list[1], title: "Tên tự đặt" };
+    list = applyProbe(list, list[1].id, probe("/x/khoa.pdf", { pages: 7 }), "bimat");
+    expect(blocked(list)).toHaveLength(0);
+    expect(list.map((i) => i.name)).toEqual(["a.pdf", "khoa.pdf", "c.pdf"]);
+    expect(list[1]).toMatchObject({ pages: 7, title: "Tên tự đặt", password: "bimat", needs_password: false });
+  });
+  it("nhập sai thì hàng vẫn báo lỗi để nhập lại", () => {
+    const list = appendUnique([], [probe("/x/khoa.pdf", { pages: null, error: "mật khẩu không đúng", needs_password: true })]);
+    const again = applyProbe(list, list[0].id, probe("/x/khoa.pdf", { pages: null, error: "mật khẩu không đúng", needs_password: true }), "sai");
+    expect(blocked(again)).toHaveLength(1);
+    expect(again[0].needs_password).toBe(true);
   });
 });
