@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getTextRuns, renderPage, type NormRect, type TextRun } from "../lib/api";
+import { getTextRuns, renderPage, renderPageEdited, type NormRect, type TextRun } from "../lib/api";
+import { useEdit } from "../edit/store";
 import { PAGE_GAP, PAGE_PAD, fitPageZoom, fitWidthZoom, pageAtScroll, pageHeightPx, pageOffsets, pageWidthPx, wheelZoom } from "../lib/viewer";
 import { useStore } from "../store";
 
@@ -52,6 +53,9 @@ function PageView({ path, index, w, h }: { path: string; index: number; w: numbe
   const tool = useStore((s) => s.tool);
   const hits = useStore((s) => s.search.hits);
   const active = useStore((s) => s.search.active);
+  // Sửa nội dung chưa lưu của trang này (rỗng thì vẽ trang gốc) và số lần phải vẽ lại tất cả (sau khi lưu đè).
+  const pageEdits = useEdit((s) => s.byPage[index]);
+  const rev = useEdit((s) => s.rev);
   // Chờ zoom ổn định rồi mới vẽ lại, tránh vẽ hàng chục lần khi lăn chuột.
   const renderW = useDebounced(w, 150);
 
@@ -69,11 +73,15 @@ function PageView({ path, index, w, h }: { path: string; index: number; w: numbe
     if (!near) return;
     let cancelled = false;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    renderPage(path, index, Math.min(MAX_RENDER_WIDTH, Math.round(renderW * dpr)))
+    const width = Math.min(MAX_RENDER_WIDTH, Math.round(renderW * dpr));
+    const job = pageEdits?.length
+      ? renderPageEdited(path, index, width, pageEdits).then((r) => { useEdit.getState().setRects(index, r.rects); return r.page; })
+      : renderPage(path, index, width);
+    job
       .then((r) => { if (!cancelled) setSrc(`data:image/png;base64,${r.png_base64}`); })
       .catch(() => { /* trang lỗi vẫn hiện khung trắng */ });
     return () => { cancelled = true; };
-  }, [near, path, index, renderW]);
+  }, [near, path, index, renderW, pageEdits, rev]);
 
   const pageHits = useMemo(
     () => hits.map((hit, i) => ({ hit, i })).filter(({ hit }) => hit.page === index),

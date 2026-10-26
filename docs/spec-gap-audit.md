@@ -75,7 +75,7 @@ Lưu ý còn nợ từ thiết kế: **mở file PDF có mật khẩu** vẫn ph
 | 2.3 | Rail điều hướng | UI 1 ③ | Hình thu nhỏ, Mục lục, Tìm kiếm | Thiếu Comments, Attachments, Layers, Lịch sử phiên bản (Chữ ký thuộc phần hoãn) | S |
 | 2.4 | Ghi chú: lưu và công cụ | UI 4C, KT GĐ3 | 10 công cụ, lưu ra bản sao | Chưa lưu đè file gốc; chưa có bảng màu 8 màu và chọn màu tự do; thiếu Sticky note dạng comment, Callout, Tem, Đo đạc, Đính kèm file, Ghi âm; **chưa có comment có trả lời, tác giả, trạng thái Mở/Đã xử lý** | L |
 | 2.5 | Tìm kiếm | UI 4B | Tìm trong file đang mở, nhảy tới kết quả | Chưa có vạch đánh dấu kết quả trên thanh cuộn; chưa có tìm trong cả thư mục (SQLite FTS5) | M |
-| 2.6 | Panel phải "Thuộc tính" | UI 1 ⑥, 4C | Panel mở/đóng được, kéo đổi cỡ | Nội dung đang là dòng chữ giữ chỗ; chưa có thuộc tính đối tượng, chi tiết comment | M |
+| 2.6 | Panel phải "Thuộc tính" | UI 1 ⑥, 4C | Panel mở/đóng được, kéo đổi cỡ; ở chế độ Chỉnh sửa đã có thuộc tính chữ/ảnh/hình (Gói H) | Còn thiếu: chưa có thuộc tính đối tượng, chi tiết comment | M |
 | 2.7 | Gộp file: tuỳ chọn và Office | UI 4G, KT 4.2 | Đã làm (Gói E): giữ dấu trang gốc, chuẩn hoá A4, mật khẩu trong hàng, "Mở trong Page Organizer", tải LibreOffice khi cần (~300 MB, hỏi trước; chưa thử trên Windows thật) | Còn thiếu: "OCR file ảnh" (Gói G), cảnh báo font; dấu trang của file khoá mật khẩu không giữ được | S |
 | 2.8 | Menu chuột phải | UI 4G | Chỉ mục "Combine files..." trên Windows | Thiếu "Convert to PDF", "Open with", "Compress/Split"; thiếu menu con "Folioscope ▸"; chưa có bản MSIX cho menu Windows 11 gốc; macOS (Finder Sync + Quick Action) và Linux chưa có | L |
 | 2.9 | Page Organizer: phần còn thiếu | UI 4D | Đã làm (Gói E): Thay thế trang, Cắt lề, Đánh số trang, nút "+" giữa trang, chèn từ clipboard/ảnh, tách theo dấu trang hoặc dung lượng, kéo file từ Explorer vào lưới | Còn thiếu: chèn từ máy quét, hiệu ứng chuyển cảnh chia sẻ | S |
@@ -94,8 +94,8 @@ Lưu ý còn nợ từ thiết kế: **mở file PDF có mật khẩu** vẫn ph
 | # | Hạng mục | Spec | Ghi chú | Cỡ |
 |---|---|---|---|---|
 | 1.1 | **Màn hình Home** (lời chào, kéo thả, hành động nhanh, file gần đây, ghim, mẫu) | UI 4A | Hiện chỉ có màn "Mở file PDF đầu tiên"; thiếu cả thumbnail file gần đây (cần SQLite) | L |
-| 1.2 | **Chế độ Chỉnh sửa nội dung**: sửa chữ, hộp chữ, ảnh, hình, link | UI 4C, KT 4.1, GĐ5 | Phần khó nhất của dự án; cần module riêng trên lopdf + `rustybuzz` | L |
-| 1.3 | Thanh nổi và bảng Thuộc tính khi chỉnh sửa (font, cỡ, B/I/U, tay nắm, smart guides, scrub số) | UI 4C | Đi cùng 1.2 | L |
+| 1.2 | **Chế độ Chỉnh sửa nội dung**: sửa chữ, hộp chữ, ảnh, hình, link | UI 4C, KT 4.1, GĐ5 | **Gói H đã làm một phần** (sửa chữ, thay/dời/đổi cỡ ảnh, sửa hình vẽ; xem `docs/content-editing.md`); còn thiếu thêm hộp chữ/ảnh/hình mới và sửa link. Phần khó nhất của dự án; cần module riêng trên lopdf + `rustybuzz` | L |
+| 1.3 | Thanh nổi và bảng Thuộc tính khi chỉnh sửa (font, cỡ, B/I/U, tay nắm, smart guides, scrub số) | UI 4C | Gói H đã làm: cỡ chữ, đậm, màu, tay nắm đổi cỡ. Còn thiếu: chọn phông, nghiêng/gạch chân, smart guides. Đi cùng 1.2 | L |
 | 1.4 | Header/footer, watermark, nền trang, đánh số Bates | UI 4C, KT GĐ5 | | M |
 | 1.5 | **Màn hình Convert / Create** (Sang PDF, Từ PDF, Nén, OCR; 2 cột; tiến trình) | UI 4E, KT GĐ4 | Hiện chỉ có Gộp file; nén chưa dùng được riêng lẻ | L |
 | 1.6 | PDF sang Word, Excel, PowerPoint, ảnh, HTML, text, ePub | UI 4E, KT 4.3 | Có nút "Xem trước" trước khi lưu | L |

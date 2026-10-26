@@ -39,7 +39,7 @@ pub struct SearchResult {
 
 const MAX_HITS: usize = 2000;
 
-fn norm(r: &PdfRect, pw: f32, ph: f32) -> NormRect {
+pub(crate) fn norm(r: &PdfRect, pw: f32, ph: f32) -> NormRect {
     let left = r.left().value / pw;
     let top = (ph - r.top().value) / ph;
     [left, top, (r.right().value - r.left().value) / pw, (r.top().value - r.bottom().value) / ph]

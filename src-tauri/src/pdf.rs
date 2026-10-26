@@ -27,6 +27,8 @@ pub enum PdfError {
     Render(String),
     #[error("không lưu được ghi chú: {0}")]
     Save(String),
+    #[error("không sửa được nội dung: {0}")]
+    Edit(String),
 }
 
 impl Serialize for PdfError {
@@ -141,11 +143,8 @@ pub fn open_document(path: String, password: Option<String>) -> Result<DocumentI
     Ok(DocumentInfo { page_count: doc.pages().len() as u16, page_sizes })
 }
 
-#[tauri::command]
-pub fn render_page(path: String, index: u16, width: u32) -> Result<RenderedPage, PdfError> {
-    let pdfium = bind()?;
-    let doc = load(pdfium, &path)?;
-    let page = doc.pages().get(index as i32).map_err(|_| PdfError::PageOutOfRange(index))?;
+/// Vẽ một trang đã mở thành ảnh PNG theo bề rộng (px).
+pub(crate) fn render_png(page: &PdfPage, width: u32) -> Result<RenderedPage, PdfError> {
     let bitmap = page
         .render_with_config(&PdfRenderConfig::new().set_target_width(width as i32))
         .map_err(|e| PdfError::Render(e.to_string()))?;
@@ -158,6 +157,14 @@ pub fn render_page(path: String, index: u16, width: u32) -> Result<RenderedPage,
         height: img.height(),
         png_base64: STANDARD.encode(buf.into_inner()),
     })
+}
+
+#[tauri::command]
+pub fn render_page(path: String, index: u16, width: u32) -> Result<RenderedPage, PdfError> {
+    let pdfium = bind()?;
+    let doc = load(pdfium, &path)?;
+    let page = doc.pages().get(index as i32).map_err(|_| PdfError::PageOutOfRange(index))?;
+    render_png(&page, width)
 }
 
 /// Ghi ghi chú vào một bản sao; từ chối ghi đè chính file đang mở.

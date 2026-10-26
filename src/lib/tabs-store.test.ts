@@ -11,7 +11,8 @@ vi.mock("./api", () => ({
 }));
 
 import { useAnnot } from "../annotations/store";
-import { useStore } from "../store";
+import { useEdit } from "../edit/store";
+import { isDirty, useStore } from "../store";
 
 const st = () => useStore.getState();
 const note = () => useAnnot.getState().add({ id: "n1", type: "rect", page: 0, rect: { x: 0, y: 0, w: .1, h: .1 }, color: "#f00", strokeWidth: 2 } as never);
@@ -94,5 +95,19 @@ describe("nhiều tab", () => {
     st().closeTab("/a.pdf");
     await st().load("/a.pdf");
     expect(st().currentPage).toBe(6);
+  });
+
+  it("sửa nội dung của từng tab được giữ riêng và tính vào 'chưa lưu'", async () => {
+    const obj = { id: 3, kind: "text", rect: [0.1, 0.1, 0.3, 0.03], text: "Hello", size: 18, font: null, bold: false, italic: false, fill: null, stroke: null, strokeWidth: null } as never;
+    await st().load("/a.pdf");
+    useEdit.getState().apply(0, obj, { text: "Xin chào" });
+    await st().load("/b.pdf");
+    expect(useEdit.getState().edits).toEqual({});
+    expect(isDirty("/a.pdf")).toBe(true);
+    expect(isDirty("/b.pdf")).toBe(false);
+    st().activateTab("/a.pdf");
+    expect(useEdit.getState().edits["0:3"]).toMatchObject({ text: "Xin chào" });
+    expect(useEdit.getState().byPage[0]).toHaveLength(1);
+    useEdit.getState().reset();
   });
 });

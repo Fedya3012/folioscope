@@ -106,3 +106,31 @@ export const getOutline = (path: string) => invoke<OutlineItem[]>("get_outline",
 export const getTextRuns = (path: string, index: number) => invoke<TextRun[]>("get_text_runs", { path, index });
 export const searchText = (path: string, query: string, matchCase: boolean) =>
   invoke<SearchResult>("search_text", { path, query, matchCase });
+
+// ---- Sửa nội dung PDF (Gói H) ----
+export type ObjKind = "text" | "image" | "shape" | "group";
+/** Một đối tượng trên trang (chữ, ảnh, hình vẽ, nhóm); `id` là số thứ tự trong trang của file gốc. */
+export type PageObj = {
+  id: number; kind: ObjKind; rect: NormRect;
+  text: string | null; size: number | null; font: string | null; bold: boolean; italic: boolean;
+  fill: string | null; stroke: string | null; strokeWidth: number | null;
+};
+export type ObjEdit = {
+  page: number; id: number; deleted?: boolean; rect?: NormRect; text?: string; size?: number; bold?: boolean;
+  /** "#RRGGBB" hoặc "none". */
+  fill?: string; stroke?: string; strokeWidth?: number; image?: string;
+};
+export type IdRect = { id: number; rect: NormRect };
+export type EditedRender = { page: RenderedPage; rects: IdRect[] };
+export type SaveEditsResult = { applied: number; font_fallback: boolean };
+
+export const listPageObjects = (path: string, index: number) => invoke<PageObj[]>("list_page_objects", { path, index });
+export const renderPageEdited = (path: string, index: number, width: number, edits: ObjEdit[]) =>
+  invoke<EditedRender>("render_page_edited", { path, index, width, edits });
+export const saveContentEdits = (path: string, out: string, edits: ObjEdit[]) =>
+  invoke<SaveEditsResult>("save_content_edits", { path, out, edits });
+
+export async function pickImage(): Promise<string | null> {
+  const picked = await open({ multiple: false, filters: [{ name: "Ảnh", extensions: ["png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "webp"] }] });
+  return typeof picked === "string" ? picked : null;
+}
