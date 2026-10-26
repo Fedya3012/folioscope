@@ -5,22 +5,23 @@ button { font: inherit; color: inherit; }
 :focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--focus-ring); }
 
 .shell { display: grid; height: 100%; grid-template-rows: var(--h-titlebar) var(--h-toolbar) auto minmax(0, 1fr) var(--h-status); }
+.shell.on-home { grid-template-rows: var(--h-titlebar) minmax(0, 1fr); }
 .titlebar, .toolbar, .statusbar { display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--surface-1); }
 .titlebar { background: var(--surface-2); border-bottom: 1px solid var(--border-default); }
 .toolbar { border-bottom: 1px solid var(--border-default); }
 .statusbar { border-top: 1px solid var(--border-default); background: var(--surface-2); font: 400 var(--fs-small)/16px var(--font-mono); color: var(--text-secondary); gap: 16px; }
 .spacer { flex: 1; }
 
-.tab { padding: 5px 12px; border-radius: var(--r-sm) var(--r-sm) 0 0; font-weight: 500; background: var(--surface-1); border: 1px solid var(--border-default); border-bottom: none; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; align-self: flex-end; color: var(--text-secondary); background: transparent; border-color: transparent; cursor: pointer; border-radius: var(--r-sm) var(--r-sm) 0 0; font-weight: 500; background: var(--surface-1); border: 1px solid var(--border-default); border-bottom: none; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.btn { height: 32px; padding: 0 14px; border-radius: var(--r-md); border: 1px solid transparent; font-weight: 600; cursor: pointer; background: transparent; transition: background-color var(--dur-fast) var(--ease), transform 80ms var(--ease); }
+.btn { height: var(--h-control, 32px); padding: 0 14px; border-radius: var(--r-md); border: 1px solid transparent; font-weight: 600; cursor: pointer; background: transparent; transition: background-color var(--dur-fast) var(--ease), transform 80ms var(--ease); }
 .btn:active { transform: scale(.97); }
 .btn.primary { background: var(--primary); color: var(--primary-on); }
 .btn.primary:hover { background: var(--primary-hover); }
 .btn.secondary { background: var(--surface-1); border-color: var(--border-strong); }
 .btn.ghost { color: var(--text-secondary); }
 .btn.ghost:hover, .btn.secondary:hover { background: var(--state-hover); }
-.btn.icon { width: 32px; padding: 0; }
+.btn.icon { width: var(--h-control, 32px); padding: 0; }
 .btn[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary-soft-text); }
 
 .segmented { display: flex; padding: 2px; gap: 2px; background: var(--surface-2); border: 1px solid var(--border-subtle); border-radius: 10px; }
@@ -147,3 +148,10 @@ button { font: inherit; color: inherit; }
 .zoomlabel { min-width: 44px; text-align: center; }
 .statusbar .btn[aria-pressed="true"] { color: var(--primary); }
 .segmented button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); font-weight: 600; box-shadow: var(--e1); }
+
+/* Tab trên thanh tiêu đề: Home luôn ghim đầu, tab đang chọn nổi lên như trong bản thiết kế. */
+.titlebar { padding-bottom: 0; }
+.titlebar > strong { align-self: center; margin-right: 8px; }
+.tab[aria-selected="true"] { background: var(--surface-1); border-color: var(--border-default); color: var(--text-primary); position: relative; top: 1px; }
+.tab.home-tab { padding: 5px 10px; }
+.titlebar .btn { align-self: center; }
