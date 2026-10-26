@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { Resizer } from "./components/Resizer";
 import { Organizer } from "./components/Organizer";
 import { Outline } from "./components/Outline";
 import { SEARCH_INPUT_ID, SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
 import { Viewer } from "./components/Viewer";
+import { CombineDialog } from "./components/CombineDialog";
 import { parsePageInput } from "./lib/viewer";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
-import { pickPdf } from "./lib/api";
+import { pickPdf, takeLaunchFiles } from "./lib/api";
 import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
 
@@ -57,6 +59,18 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // null = đóng; mảng = mở hộp thoại Gộp file với các file ban đầu này.
+  const [combine, setCombine] = useState<string[] | null>(null);
+  const closeCombine = useCallback(() => setCombine(null), []);
+
+  // File đến từ menu chuột phải của Windows (lúc khởi động hoặc khi app đã mở sẵn).
+  useEffect(() => {
+    const pull = () => takeLaunchFiles().then((f) => { if (f.length) setCombine(f); }).catch(() => {});
+    void pull();
+    const sub = listen("launch-combine", pull);
+    return () => { void sub.then((un) => un()); };
+  }, []);
+
   const open = async () => { const p = await pickPdf(); if (p) await s.load(p); };
   const fileName = s.path?.split(/[\\/]/).pop();
 
@@ -71,6 +85,7 @@ export function App() {
 
       <div className="toolbar" role="toolbar" aria-label="Công cụ chính">
         <button className="btn secondary" onClick={open}>Mở file…</button>
+        <button className="btn secondary" onClick={() => setCombine([])}>Gộp file…</button>
         <div className="segmented" role="group" aria-label="Công cụ con trỏ">
           <button aria-pressed={s.tool === "select"} onClick={() => s.setTool("select")} title="Chọn chữ">Chọn chữ</button>
           <button aria-pressed={s.tool === "hand"} onClick={() => s.setTool("hand")} title="Kéo trang">Bàn tay</button>
@@ -154,6 +169,7 @@ export function App() {
         <span className="zoomlabel">{Math.round(s.zoom * 100)}%</span>
         <button className="btn ghost" onClick={() => s.zoomBy(1)} aria-label="Phóng to">+</button>
       </footer>
+      {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}
     </div>
   );
 }

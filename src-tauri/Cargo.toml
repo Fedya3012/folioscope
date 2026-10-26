@@ -18,5 +18,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 pdfium-render = { version = "0.9", features = ["thread_safe"] }
 base64 = "0.22"
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "tiff", "webp"] }
 thiserror = "2"
+lopdf = "0.46"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
