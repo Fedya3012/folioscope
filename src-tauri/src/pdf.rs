@@ -1,8 +1,9 @@
 //! Mở và vẽ trang PDF bằng PDFium. Mọi việc nặng chạy ở đây, giao diện chỉ nhận ảnh.
 
 use std::io::Cursor;
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use image::ImageFormat;
@@ -15,6 +16,11 @@ pub enum PdfError {
     Library(String),
     #[error("không mở được file: {0}")]
     Open(String),
+    /// Chuỗi cố định này được giao diện nhận ra để hiện hộp nhập mật khẩu; đừng đổi.
+    #[error("PASSWORD_REQUIRED")]
+    PasswordRequired,
+    #[error("WRONG_PASSWORD")]
+    WrongPassword,
     #[error("trang {0} không tồn tại")]
     PageOutOfRange(u16),
     #[error("lỗi vẽ trang: {0}")]
@@ -79,12 +85,43 @@ pub(crate) fn bind() -> Result<&'static Pdfium, PdfError> {
         .map_err(|e| PdfError::Library(e.clone()))
 }
 
+/// Mật khẩu đã nhập đúng, theo đường dẫn file, để mọi lệnh sau (vẽ trang, tìm kiếm, lưu...) tự mở lại được.
+/// Chỉ nằm trong bộ nhớ, không ghi ra đĩa.
+static PASSWORDS: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+
+fn passwords() -> std::sync::MutexGuard<'static, HashMap<String, String>> {
+    PASSWORDS.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
+}
+
+fn open_with<'a>(pdfium: &'a Pdfium, path: &str, password: Option<&str>) -> Result<PdfDocument<'a>, PdfError> {
+    pdfium.load_pdf_from_file(path, password).map_err(|e| match e {
+        PdfiumError::PdfiumLibraryInternalError(PdfiumInternalError::PasswordError) => {
+            if password.is_some() { PdfError::WrongPassword } else { PdfError::PasswordRequired }
+        }
+        other => PdfError::Open(other.to_string()),
+    })
+}
+
+/// Mở file, dùng mật khẩu đã nhớ nếu có. Mọi chỗ cần mở PDF bằng PDFium nên gọi hàm này.
+pub(crate) fn load<'a>(pdfium: &'a Pdfium, path: &str) -> Result<PdfDocument<'a>, PdfError> {
+    let saved = passwords().get(path).cloned();
+    open_with(pdfium, path, saved.as_deref())
+}
+
 #[tauri::command]
-pub fn open_document(path: String) -> Result<DocumentInfo, PdfError> {
+pub fn open_document(path: String, password: Option<String>) -> Result<DocumentInfo, PdfError> {
     let pdfium = bind()?;
-    let doc = pdfium
-        .load_pdf_from_file(&path, None)
-        .map_err(|e| PdfError::Open(e.to_string()))?;
+    let doc = match password.as_deref() {
+        Some(pw) => {
+            let doc = open_with(pdfium, &path, Some(pw))?;
+            passwords().insert(path.clone(), pw.to_string());
+            doc
+        }
+        None => {
+            passwords().remove(&path); // mở lại từ đầu thì không dùng mật khẩu cũ
+            load(pdfium, &path)?
+        }
+    };
     let page_sizes = doc
         .pages()
         .iter()
@@ -96,9 +133,7 @@ pub fn open_document(path: String) -> Result<DocumentInfo, PdfError> {
 #[tauri::command]
 pub fn render_page(path: String, index: u16, width: u32) -> Result<RenderedPage, PdfError> {
     let pdfium = bind()?;
-    let doc = pdfium
-        .load_pdf_from_file(&path, None)
-        .map_err(|e| PdfError::Open(e.to_string()))?;
+    let doc = load(pdfium, &path)?;
     let page = doc.pages().get(index as i32).map_err(|_| PdfError::PageOutOfRange(index))?;
     let bitmap = page
         .render_with_config(&PdfRenderConfig::new().set_target_width(width as i32))
@@ -121,9 +156,7 @@ pub fn save_annotations(path: String, out: String, items: Vec<crate::annotations
         return Err(PdfError::Save("không ghi đè file gốc, hãy chọn tên khác".into()));
     }
     let pdfium = bind()?;
-    let doc = pdfium
-        .load_pdf_from_file(&path, None)
-        .map_err(|e| PdfError::Open(e.to_string()))?;
+    let doc = load(pdfium, &path)?;
     let n = crate::annotations::apply(&doc, &items).map_err(|e| PdfError::Save(e.to_string()))?;
     doc.save_to_file(&out).map_err(|e| PdfError::Save(e.to_string()))?;
     Ok(n)
@@ -137,11 +170,40 @@ mod tests {
     #[test]
     fn renders_first_page_of_sample() {
         let Ok(path) = std::env::var("FOLIOSCOPE_TEST_PDF") else { return };
-        let info = open_document(path.clone()).expect("mở được file mẫu");
+        let info = open_document(path.clone(), None).expect("mở được file mẫu");
         assert!(info.page_count > 0);
         let page = render_page(path, 0, 400).expect("vẽ được trang đầu");
         assert_eq!(page.width, 400);
         assert!(page.height > 0 && !page.png_base64.is_empty());
+    }
+
+    /// PDF 1 trang mã hoá RC4, mật khẩu mở là "matkhau".
+    const ENCRYPTED_PDF: &str = "JVBERi0xLjMKJeLjz9MKMSAwIG9iago8PAovUHJvZHVjZXIgPDVmMjUyY2ZkNmU+Cj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9UeXBlIC9QYWdlcwovQ291bnQgMQovS2lkcyBbIDQgMCBSIF0KPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDIgMCBSCj4+CmVuZG9iago0IDAgb2JqCjw8Ci9UeXBlIC9QYWdlCi9SZXNvdXJjZXMgPDwKPj4KL01lZGlhQm94IFsgMC4wIDAuMCAyMDAgMzAwIF0KL1BhcmVudCAyIDAgUgo+PgplbmRvYmoKNSAwIG9iago8PAovViAyCi9SIDMKL0xlbmd0aCAxMjgKL1AgNDI5NDk2NzI5MgovRmlsdGVyIC9TdGFuZGFyZAovTyA8YzQyYjU1NTk3MWE1YWMxYTE1OTRmMDM4NjZlMjY0ZjEyZDFlM2I2MTdlMzU3NzYyZTNiZTIwMzZlYjA5Yjc1MT4KL1UgPDJjY2ZiYjg0OGIzMjIzZGFlZmEyODk2NDY5MDEyOWUyMjhiZjRlNWU0ZTc1OGE0MTY0MDA0ZTU2ZmZmYTAxMDg+Cj4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA1OSAwMDAwMCBuIAowMDAwMDAwMTE4IDAwMDAwIG4gCjAwMDAwMDAxNjcgMDAwMDAgbiAKMDAwMDAwMDI2MSAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9TaXplIDYKL1Jvb3QgMyAwIFIKL0luZm8gMSAwIFIKL0lEIFsgPDYyMzE2MzY1NjYzMDMzNjYzNDY1MzczNTM3Mzc2MjY2MzMzOTM2MzE2NDY1NjQ2MTM5MzYzNDM0Mzk2NTYxMzA+IDw2MjMxNjM2NTY2MzAzMzY2MzQ2NTM3MzUzNzM3NjI2NjMzMzkzNjMxNjQ2NTY0NjEzOTM2MzQzNDM5NjU2MTMwPiBdCi9FbmNyeXB0IDUgMCBSCj4+CnN0YXJ0eHJlZgo0NzYKJSVFT0YK";
+
+    #[test]
+    fn opens_password_protected_file() {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+        let path = std::env::temp_dir().join("folioscope-password-test.pdf");
+        std::fs::write(&path, STANDARD.decode(ENCRYPTED_PDF).unwrap()).unwrap();
+        let p = path.to_string_lossy().to_string();
+
+        assert!(matches!(open_document(p.clone(), None), Err(PdfError::PasswordRequired)));
+        assert!(matches!(open_document(p.clone(), Some("sai".into())), Err(PdfError::WrongPassword)));
+        assert!(render_page(p.clone(), 0, 100).is_err(), "chưa nhập đúng thì không vẽ được");
+
+        let info = open_document(p.clone(), Some("matkhau".into())).expect("đúng mật khẩu thì mở được");
+        assert_eq!(info.page_count, 1);
+        // Các lệnh sau dùng lại mật khẩu đã nhớ.
+        assert!(render_page(p.clone(), 0, 100).is_ok());
+        // Mở lại không kèm mật khẩu thì phải hỏi lại.
+        assert!(matches!(open_document(p, None), Err(PdfError::PasswordRequired)));
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn password_errors_have_stable_markers() {
+        assert_eq!(PdfError::PasswordRequired.to_string(), "PASSWORD_REQUIRED");
+        assert_eq!(PdfError::WrongPassword.to_string(), "WRONG_PASSWORD");
     }
 
     #[test]

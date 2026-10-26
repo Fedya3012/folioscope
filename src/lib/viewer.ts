@@ -64,3 +64,29 @@ export function stepIndex(current: number, count: number, dir: 1 | -1): number {
 
 /** Số bước zoom mỗi nấc lăn chuột khi giữ Ctrl: mượt, ~10% mỗi nấc. */
 export const wheelZoom = (zoom: number, deltaY: number) => zoom * Math.exp(-deltaY * 0.0015);
+
+// ---- Màu nền trang khi đọc ----
+export type PageTheme = "normal" | "night" | "sepia";
+export const PAGE_THEME_LABEL: Record<PageTheme, string> = { normal: "Giấy trắng", night: "Đọc ban đêm", sepia: "Sepia" };
+const PAGE_THEME_ORDER: PageTheme[] = ["normal", "night", "sepia"];
+export const isPageTheme = (v: unknown): v is PageTheme => PAGE_THEME_ORDER.includes(v as PageTheme);
+export const nextPageTheme = (t: PageTheme): PageTheme => PAGE_THEME_ORDER[(PAGE_THEME_ORDER.indexOf(t) + 1) % PAGE_THEME_ORDER.length];
+
+// ---- Chọn mức zoom ----
+export const ZOOM_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+
+/** Giá trị của ô chọn zoom: "width", "page", một mức có sẵn (vd "1.5"), hoặc "custom" khi đang ở mức lẻ. */
+export function zoomChoice(zoom: number, fit: Fit): string {
+  if (fit) return fit;
+  const preset = ZOOM_PRESETS.find((p) => Math.abs(p - zoom) < 0.005);
+  return preset === undefined ? "custom" : String(preset);
+}
+
+// ---- Mật khẩu ----
+/** Lõi Rust trả đúng hai chuỗi này khi file cần mật khẩu hoặc mật khẩu sai (xem `PdfError` trong pdf.rs). */
+export function passwordFailure(err: unknown): "required" | "wrong" | null {
+  const s = String(err);
+  if (s.includes("WRONG_PASSWORD")) return "wrong";
+  if (s.includes("PASSWORD_REQUIRED")) return "required";
+  return null;
+}

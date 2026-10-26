@@ -92,7 +92,7 @@ function PageView({ path, index, w, h }: { path: string; index: number; w: numbe
 }
 
 export function Viewer() {
-  const { path, info, zoom, fit, viewMode, currentPage, nav, tool } = useStore();
+  const { path, info, zoom, fit, viewMode, currentPage, nav, tool, pageTheme } = useStore();
   const scroller = useRef<HTMLDivElement>(null);
   const sizes = info?.page_sizes ?? [];
   const { tops, total } = useMemo(() => pageOffsets(sizes, zoom), [sizes, zoom]);
@@ -175,7 +175,7 @@ export function Viewer() {
   return (
     <div
       ref={scroller}
-      className={`viewer ${tool}`}
+      className={`viewer ${tool} paper-${pageTheme}`}
       onScroll={onScroll}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

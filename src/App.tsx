@@ -12,7 +12,9 @@ import { Home } from "./components/Home";
 import { Icon } from "./components/Icon";
 import { Settings } from "./components/Settings";
 import { routeDrop } from "./lib/recent";
-import { parsePageInput } from "./lib/viewer";
+import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput } from "./lib/viewer";
+import { PasswordDialog } from "./components/PasswordDialog";
+import { ViewControls } from "./components/ViewControls";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
 import { pickPdf, takeLaunchFiles } from "./lib/api";
@@ -180,10 +182,10 @@ export function App() {
         )}
 
         <main className="canvas">
-          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /></> : (
+          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /><ViewControls /></> : (
             <div className="empty">
               <h1>Mở file PDF đầu tiên của bạn</h1>
-              <p>{s.error ?? "Chọn một file để xem. Kéo thả sẽ có ở bản sau."}</p>
+              <p>{s.error ?? "Chọn một file để xem, hoặc kéo file PDF thả vào cửa sổ."}</p>
               <div><button className="btn primary" onClick={open}>Chọn file…</button></div>
             </div>
           )}
@@ -218,6 +220,7 @@ export function App() {
         <button className="btn ghost" aria-label="Trang sau" disabled={!s.info || s.currentPage >= s.info.page_count - 1} onClick={() => s.goToPage(s.currentPage + 1)}>›</button>
         {pagesDirty && <span>Có thay đổi trang chưa lưu</span>}
         <span className="spacer" />
+        <button className="btn ghost" title="Đổi màu nền trang" onClick={() => s.setPageTheme(nextPageTheme(s.pageTheme))}>{PAGE_THEME_LABEL[s.pageTheme]}</button>
         <button className="btn ghost" onClick={() => s.setFit("width")} aria-pressed={s.fit === "width"}>Vừa bề rộng</button>
         <button className="btn ghost" onClick={() => s.setFit("page")} aria-pressed={s.fit === "page"}>Vừa trang</button>
         <button className="btn ghost" onClick={() => s.zoomBy(-1)} aria-label="Thu nhỏ">−</button>
@@ -225,6 +228,7 @@ export function App() {
         <button className="btn ghost" onClick={() => s.zoomBy(1)} aria-label="Phóng to">+</button>
       </footer>
       </>)}
+      <PasswordDialog />
       {s.settingsOpen && <Settings />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
       {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}

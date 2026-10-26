@@ -3,7 +3,7 @@ import { LEFT, RIGHT, ZOOM_MAX, ZOOM_MIN, clamp, resolvePanelWidth, stepZoom } f
 import { getOutline, openDocument, probeFiles, searchText, type DocumentInfo, type OutlineItem, type SearchHit } from "./lib/api";
 import { addRecent, parseRecent, removeRecent, togglePin, trimRecent, type RecentFile } from "./lib/recent";
 import { DEFAULT_SETTINGS, initialZoom, resolveTheme, sanitizeSettings, type Settings } from "./lib/settings";
-import { stepIndex, type Fit, type ViewMode } from "./lib/viewer";
+import { isPageTheme, passwordFailure, stepIndex, type Fit, type PageTheme, type ViewMode } from "./lib/viewer";
 
 export type Theme = "light" | "dark";
 export type Mode = "view" | "annotate" | "edit" | "pages" | "tools";
@@ -39,8 +39,23 @@ const savedSettings = (): Settings => {
   return DEFAULT_SETTINGS;
 };
 
+const savedPageTheme = (): PageTheme => {
+  try {
+    const t = localStorage.getItem("folioscope.pageTheme");
+    if (isPageTheme(t)) return t;
+  } catch { /* chạy được dù không có localStorage */ }
+  return "normal";
+};
+
+/** File đang chờ mật khẩu; `wrong` là lần nhập trước bị sai. */
+export type PasswordPrompt = { path: string; wrong: boolean };
+
 interface State {
   theme: Theme;
+  pageTheme: PageTheme;
+  passwordPrompt: PasswordPrompt | null;
+  setPageTheme(t: PageTheme): void;
+  cancelPassword(): void;
   /** "home" = màn hình Bắt đầu; "doc" = tài liệu đang mở. */
   view: "home" | "doc";
   settings: Settings; settingsOpen: boolean;
@@ -64,7 +79,7 @@ interface State {
   setMode(m: Mode): void;
   togglePanel(p: PanelKey): void;
   dragPanel(p: PanelKey, rawWidth: number): void;
-  load(path: string): Promise<void>;
+  load(path: string, password?: string): Promise<void>;
   noteRecent(path: string, pages: number): Promise<void>;
   setPage(i: number): void;
   zoomBy(dir: 1 | -1): void;
@@ -83,7 +98,7 @@ const initialSettings = savedSettings();
 let prefersDark = systemDark();
 
 export const useStore = create<State>((set, get) => ({
-  theme: resolveTheme(initialSettings.theme, prefersDark), mode: "view",
+  theme: resolveTheme(initialSettings.theme, prefersDark), pageTheme: savedPageTheme(), passwordPrompt: null, mode: "view",
   view: "home", settings: initialSettings, settingsOpen: false,
   recent: parseRecent(readJson(RECENT_KEY)),
   leftOpen: true, leftWidth: LEFT.def, rightOpen: false, rightWidth: RIGHT.def,
@@ -94,6 +109,11 @@ export const useStore = create<State>((set, get) => ({
   toggleTheme() {
     get().updateSettings({ theme: get().theme === "dark" ? "light" : "dark" });
   },
+  setPageTheme(pageTheme) {
+    try { localStorage.setItem("folioscope.pageTheme", pageTheme); } catch { /* bỏ qua */ }
+    set({ pageTheme });
+  },
+  cancelPassword: () => set({ passwordPrompt: null }),
   setView: (view) => set({ view }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   updateSettings(patch) {
@@ -117,17 +137,20 @@ export const useStore = create<State>((set, get) => ({
     const r = resolvePanelWidth(raw, p === "left" ? LEFT : RIGHT);
     set(p === "left" ? { leftOpen: r.open, leftWidth: r.width } : { rightOpen: r.open, rightWidth: r.width });
   },
-  async load(path) {
+  async load(path, password) {
     try {
-      const info = await openDocument(path);
+      const info = await openDocument(path, password);
       searchGen++;
       const z = initialZoom(get().settings.defaultZoom);
-      set({ path, info, view: "doc", error: null, currentPage: 0, fit: z.fit, zoom: z.zoom ?? get().zoom, outline: [], search: noSearch, nav: { page: 0, y: null, nonce: get().nav.nonce + 1 } });
+      set({ path, info, view: "doc", error: null, passwordPrompt: null, currentPage: 0, fit: z.fit, zoom: z.zoom ?? get().zoom, outline: [], search: noSearch, nav: { page: 0, y: null, nonce: get().nav.nonce + 1 } });
       // Mục lục có thể không có hoặc hỏng; không để nó cản việc mở file.
       void get().noteRecent(path, info.page_count);
       getOutline(path).then((outline) => { if (get().path === path) set({ outline }); }).catch(() => {});
     } catch (e) {
-      set({ error: String(e) });
+      // File có mật khẩu: không báo lỗi, mở hộp nhập mật khẩu.
+      const why = passwordFailure(e);
+      if (why) set({ passwordPrompt: { path, wrong: why === "wrong" }, error: null });
+      else set({ error: String(e), passwordPrompt: null });
     }
   },
   async noteRecent(path, pages) {

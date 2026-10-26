@@ -152,6 +152,26 @@ button { font: inherit; color: inherit; }
 .statusbar .btn[aria-pressed="true"] { color: var(--primary); }
 .segmented button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); font-weight: 600; box-shadow: var(--e1); }
 
+/* Màu nền trang: đọc ban đêm đảo màu ảnh trang nhưng giữ nguyên màu thật của hình; sepia ấm hơn. */
+.viewer.paper-night .page { background: #1A1C20; }
+.viewer.paper-night .page img { filter: invert(.88) hue-rotate(180deg); }
+.viewer.paper-sepia .page { background: #F4ECD8; }
+.viewer.paper-sepia .page img { filter: sepia(.35) brightness(.97); }
+
+/* Hộp mật khẩu */
+.modal.narrow { width: min(420px, calc(100vw - 32px)); }
+.modal .stack { display: flex; flex-direction: column; gap: 6px; color: var(--text-secondary); }
+.modal input[type="password"] { height: 32px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); font: inherit; }
+.modal input[aria-invalid="true"] { border-color: var(--danger); }
+
+/* Thanh điều khiển nổi */
+.view-controls { position: absolute; right: 16px; bottom: 16px; z-index: 20; height: 36px; display: flex; align-items: center; gap: 2px; padding: 0 6px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border-default); box-shadow: var(--e3); transition: opacity 160ms var(--ease); }
+.view-controls.idle:not(:focus-within) { opacity: .35; }
+.view-controls .btn.icon { width: 28px; height: 28px; border-radius: 999px; }
+.view-controls select { height: 28px; border: 0; border-radius: 999px; background: transparent; color: var(--text-primary); font: 500 var(--fs-small) var(--font-mono); padding: 0 4px; cursor: pointer; }
+.vc-pages { padding: 0 6px; font: 500 var(--fs-small) var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.vc-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border-default); }
+@media (prefers-reduced-motion: reduce) { .view-controls { transition: none; } }
 /* Tab trên thanh tiêu đề: Home luôn ghim đầu, tab đang chọn nổi lên như trong bản thiết kế. */
 .titlebar { padding-bottom: 0; }
 .titlebar > strong { align-self: center; margin-right: 8px; }

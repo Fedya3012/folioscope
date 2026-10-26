@@ -24,6 +24,11 @@ Bấm tab **Trang** (hoặc phím `O`) để xem lưới hình thu nhỏ: kéo t
 - Mục chuột phải: trong hộp thoại bấm **Cài vào Explorer** (ghi vào HKCU, không cần quyền quản trị, gỡ được). Windows 11 hiện ở "Show more options" (Shift+F10); Explorer ẩn mục cổ điển khi chọn quá 15 file, khi đó kéo thả file vào cửa sổ.
 - Thử gộp file thật: `FOLIOSCOPE_TEST_FILES="a.pdf|b.docx|c.jpg" cargo test combines_real_files_from_env` (thêm `FOLIOSCOPE_TEST_KEEP=/đường/dẫn/kq.pdf` để giữ kết quả).
 
+## Trình xem: tiện dùng (gói B1)
+- File PDF có mật khẩu: hộp nhập mật khẩu hiện khi mở; mật khẩu chỉ giữ trong bộ nhớ, không ghi ra đĩa (`pdf.rs`).
+- Thanh điều khiển nổi ở góc dưới phải (trang trước/sau, zoom, chọn chữ, bàn tay), mờ đi sau 2 giây không đụng chuột.
+- Nút ở thanh trạng thái đổi màu nền trang: giấy trắng, đọc ban đêm, sepia.
+- Gộp file với PDF có mật khẩu vẫn chưa hỗ trợ: cần mở khoá trước.
 ## Home / Start Screen và Cài đặt
 - Mở app không có file thì vào **Home**: lời chào, vùng kéo thả, 6 thao tác nhanh (Mở file, Tạo PDF, Gộp file đã chạy; Chuyển đổi, Nén, OCR ghi “Sắp có”), danh sách file gần đây (lưới/danh sách, ghim, xoá khỏi danh sách) và băng Templates (chưa có nội dung). Tab Home luôn ghim đầu thanh tab.
 - Thả 1 file PDF vào cửa sổ thì mở; thả nhiều file hoặc Word/ảnh thì vào hộp thoại Gộp file. `Ctrl+O` mở file.
