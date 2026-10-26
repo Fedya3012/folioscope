@@ -4,7 +4,8 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 export type DocumentInfo = { page_count: number; page_sizes: [number, number][] };
 export type RenderedPage = { width: number; height: number; png_base64: string };
 
-export const openDocument = (path: string) => invoke<DocumentInfo>("open_document", { path });
+export const openDocument = (path: string, password?: string) =>
+  invoke<DocumentInfo>("open_document", { path, password: password ?? null });
 export const renderPage = (path: string, index: number, width: number) =>
   invoke<RenderedPage>("render_page", { path, index, width });
 

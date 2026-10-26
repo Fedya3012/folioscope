@@ -41,3 +41,23 @@
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-fast: 1ms; --dur-normal: 1ms; --dur-moderate: 1ms; }
 }
+
+/* Màu nhấn (Cài đặt → Giao diện). Cobalt là mặc định, nằm sẵn ở :root. */
+:root[data-accent="violet"] { --primary: #6B5BD6; --primary-hover: #5A4AC4; --primary-pressed: #4A3DA8; --primary-soft: #F2F0FD; --primary-soft-text: #4A3DA8; --focus-ring: #6B5BD6; }
+:root[data-accent="teal"] { --primary: #0E8F8A; --primary-hover: #0B7B77; --primary-pressed: #096662; --primary-soft: #E3F5F4; --primary-soft-text: #096662; --focus-ring: #0E8F8A; }
+:root[data-accent="rose"] { --primary: #D6407A; --primary-hover: #BE3369; --primary-pressed: #9F2956; --primary-soft: #FCEAF2; --primary-soft-text: #9F2956; --focus-ring: #D6407A; }
+:root[data-accent="amber"] { --primary: #F5B700; --primary-hover: #DBA200; --primary-pressed: #A87800; --primary-on: #14171C; --primary-soft: #FFF4CC; --primary-soft-text: #7A5700; --focus-ring: #D9A000; }
+:root[data-accent="graphite"] { --primary: #4A5262; --primary-hover: #3B4250; --primary-pressed: #262B35; --primary-soft: #ECEEF2; --primary-soft-text: #262B35; --focus-ring: #4A5262; }
+:root[data-theme="dark"][data-accent="violet"] { --primary: #9B8CFF; --primary-hover: #B0A4FF; --primary-pressed: #8575F0; --primary-on: #120C38; --primary-soft: #231E45; --primary-soft-text: #D3CCFF; --focus-ring: #B0A4FF; }
+:root[data-theme="dark"][data-accent="teal"] { --primary: #3CC5BF; --primary-hover: #5AD3CE; --primary-pressed: #2BAFA9; --primary-on: #04201F; --primary-soft: #11302F; --primary-soft-text: #A5EBE8; --focus-ring: #5AD3CE; }
+:root[data-theme="dark"][data-accent="rose"] { --primary: #F07AA8; --primary-hover: #F596BC; --primary-pressed: #E35F93; --primary-on: #2E0716; --primary-soft: #3A1727; --primary-soft-text: #FFC4DA; --focus-ring: #F596BC; }
+:root[data-theme="dark"][data-accent="amber"] { --primary: #F5B700; --primary-hover: #FFC933; --primary-pressed: #DBA200; --primary-on: #14171C; --primary-soft: #33280A; --primary-soft-text: #FFE08A; --focus-ring: #FFC933; }
+:root[data-theme="dark"][data-accent="graphite"] { --primary: #A9B0BD; --primary-hover: #C5CBD5; --primary-pressed: #9AA2B1; --primary-on: #0F1115; --primary-soft: #232832; --primary-soft-text: #ECEEF2; --focus-ring: #C5CBD5; }
+
+/* Cỡ giao diện, mật độ, giảm chuyển động (Cài đặt → Giao diện). */
+:root { --h-control: 32px; }
+:root[data-density="compact"] { --h-control: 28px; }
+:root[data-size="12"] { --fs-body: 12px; --fs-small: 11px; --fs-caption: 10px; }
+:root[data-size="15"] { --fs-body: 15px; --fs-small: 13px; --fs-caption: 12px; }
+:root[data-size="17"] { --fs-body: 17px; --fs-small: 14px; --fs-caption: 13px; }
+:root[data-motion="reduce"] { --dur-fast: 1ms; --dur-normal: 1ms; --dur-moderate: 1ms; }
