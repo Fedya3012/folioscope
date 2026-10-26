@@ -19,6 +19,8 @@ pub enum PdfError {
     PageOutOfRange(u16),
     #[error("lỗi vẽ trang: {0}")]
     Render(String),
+    #[error("không lưu được ghi chú: {0}")]
+    Save(String),
 }
 
 impl Serialize for PdfError {
@@ -60,7 +62,7 @@ fn library_dirs() -> Vec<PathBuf> {
 /// PDFium chỉ được nạp một lần cho cả tiến trình, nên giữ bản dùng chung.
 static PDFIUM: OnceLock<Result<Pdfium, String>> = OnceLock::new();
 
-pub fn bind() -> Result<&'static Pdfium, PdfError> {
+pub(crate) fn bind() -> Result<&'static Pdfium, PdfError> {
     PDFIUM
         .get_or_init(|| {
             let mut last = String::from("không có đường dẫn nào");
@@ -112,6 +114,21 @@ pub fn render_page(path: String, index: u16, width: u32) -> Result<RenderedPage,
     })
 }
 
+/// Ghi ghi chú vào một bản sao; từ chối ghi đè chính file đang mở.
+#[tauri::command]
+pub fn save_annotations(path: String, out: String, items: Vec<crate::annotations::Item>) -> Result<usize, PdfError> {
+    if std::path::Path::new(&path) == std::path::Path::new(&out) {
+        return Err(PdfError::Save("không ghi đè file gốc, hãy chọn tên khác".into()));
+    }
+    let pdfium = bind()?;
+    let doc = pdfium
+        .load_pdf_from_file(&path, None)
+        .map_err(|e| PdfError::Open(e.to_string()))?;
+    let n = crate::annotations::apply(&doc, &items).map_err(|e| PdfError::Save(e.to_string()))?;
+    doc.save_to_file(&out).map_err(|e| PdfError::Save(e.to_string()))?;
+    Ok(n)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,5 +147,27 @@ mod tests {
     #[test]
     fn page_out_of_range_message_is_vietnamese() {
         assert_eq!(PdfError::PageOutOfRange(7).to_string(), "trang 7 không tồn tại");
+    }
+
+    /// Lưu đủ 10 loại ghi chú vào bản sao rồi mở lại để đếm. Chạy khi đặt FOLIOSCOPE_TEST_PDF.
+    #[test]
+    fn saves_every_annotation_kind() {
+        use crate::annotations::{Item, Pt, Rect};
+        let Ok(path) = std::env::var("FOLIOSCOPE_TEST_PDF") else { return };
+        let out = std::env::temp_dir().join("folioscope-annot-test.pdf");
+        let r = Some(Rect { x: 0.1, y: 0.1, w: 0.3, h: 0.05 });
+        let line = Some(vec![Pt { x: 0.1, y: 0.5 }, Pt { x: 0.5, y: 0.6 }, Pt { x: 0.6, y: 0.7 }]);
+        let mk = |kind: &str, rect, points| Item {
+            page: 0, kind: kind.into(), color: "#FF453A".into(), stroke_width: 2.0, rect, points, text: Some("xin chào".into()),
+        };
+        let items: Vec<Item> = ["highlight", "underline", "strikeout", "note", "text", "rect", "ellipse"]
+            .iter().map(|k| mk(k, r, None))
+            .chain(["line", "arrow", "ink"].iter().map(|k| mk(k, None, line.clone())))
+            .collect();
+        let n = save_annotations(path.clone(), out.to_string_lossy().into(), items).expect("lưu được");
+        assert_eq!(n, 10);
+        assert!(save_annotations(path.clone(), path, vec![]).is_err(), "không được ghi đè file gốc");
+        let doc = bind().unwrap().load_pdf_from_file(&out, None).unwrap();
+        assert_eq!(doc.pages().get(0).unwrap().annotations().len(), 10);
     }
 }

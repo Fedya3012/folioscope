@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use pdfium_render::prelude::*;
 use serde::Deserialize;
@@ -22,6 +23,9 @@ pub struct PageRef {
     pub width: f32,
     pub height: f32,
 }
+
+/// Ghi file dựng tài liệu mới nên chạy lần lượt, không chồng lên nhau.
+static EXPORT_LOCK: Mutex<()> = Mutex::new(());
 
 fn rotation_from_degrees(deg: i32) -> PdfPageRenderRotation {
     match deg.rem_euclid(360) {
@@ -48,6 +52,7 @@ pub fn export_pages(pages: Vec<PageRef>, output: String) -> Result<u32, PdfError
     if pages.is_empty() {
         return Err(PdfError::Render("không có trang nào để ghi".into()));
     }
+    let _guard = EXPORT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let pdfium = bind()?;
     let tmp = PathBuf::from(format!("{output}.folioscope-tmp"));
     let count = pages.len() as u32;
