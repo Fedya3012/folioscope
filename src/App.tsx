@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { Resizer } from "./components/Resizer";
 import { Viewer } from "./components/Viewer";
+import { AnnotateBar } from "./annotations/AnnotateBar";
+import { AnnotationLayer } from "./annotations/AnnotationLayer";
 import { pickPdf } from "./lib/api";
 import { useStore, type Mode } from "./store";
 
@@ -50,6 +52,8 @@ export function App() {
         <button className="btn ghost" aria-pressed={s.rightOpen} onClick={() => s.togglePanel("right")}>Thuộc tính</button>
       </div>
 
+      <div className="annot-slot"><AnnotateBar /></div>
+
       <div className="workspace">
         <nav className="rail" aria-label="Điều hướng">
           <button aria-label="Hình thu nhỏ" aria-pressed={s.leftOpen} onClick={() => s.togglePanel("left")}>▤</button>
@@ -72,7 +76,7 @@ export function App() {
         )}
 
         <main className="canvas" ref={canvas}>
-          {s.info ? <Viewer /> : (
+          {s.info ? <><Viewer /><AnnotationLayer /></> : (
             <div className="empty">
               <h1>Mở file PDF đầu tiên của bạn</h1>
               <p>{s.error ?? "Chọn một file để xem. Kéo thả sẽ có ở bản sau."}</p>
