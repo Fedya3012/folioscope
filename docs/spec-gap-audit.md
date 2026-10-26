@@ -75,10 +75,10 @@ Lưu ý còn nợ từ thiết kế: **mở file PDF có mật khẩu** vẫn ph
 | 2.3 | Rail điều hướng | UI 1 ③ | Hình thu nhỏ, Mục lục, Tìm kiếm | Thiếu Comments, Attachments, Layers, Lịch sử phiên bản (Chữ ký thuộc phần hoãn) | S |
 | 2.4 | Ghi chú: lưu và công cụ | UI 4C, KT GĐ3 | 10 công cụ, lưu ra bản sao | Chưa lưu đè file gốc; chưa có bảng màu 8 màu và chọn màu tự do; thiếu Sticky note dạng comment, Callout, Tem, Đo đạc, Đính kèm file, Ghi âm; **chưa có comment có trả lời, tác giả, trạng thái Mở/Đã xử lý** | L |
 | 2.5 | Tìm kiếm | UI 4B | Tìm trong file đang mở, nhảy tới kết quả | Chưa có vạch đánh dấu kết quả trên thanh cuộn; chưa có tìm trong cả thư mục (SQLite FTS5) | M |
-| 2.6 | Panel phải "Thuộc tính" | UI 1 ⑥, 4C | Panel mở/đóng được, kéo đổi cỡ | Nội dung đang là dòng chữ giữ chỗ; chưa có thuộc tính đối tượng, chi tiết comment | M |
-| 2.7 | Gộp file: tuỳ chọn và Office | UI 4G, KT 4.2 | Dấu trang, nén, thứ tự | LibreOffice chưa được đóng kèm hay tải thêm tự động (đang bắt người dùng cài); thiếu "Giữ dấu trang gốc", "OCR file ảnh", "Chuẩn hoá về A4", nút "Mở trong Page Organizer", ô nhập mật khẩu trong hàng, cảnh báo font | M |
+| 2.6 | Panel phải "Thuộc tính" | UI 1 ⑥, 4C | Panel mở/đóng được, kéo đổi cỡ; ở chế độ Chỉnh sửa đã có thuộc tính chữ/ảnh/hình (Gói H) | Còn thiếu: chưa có thuộc tính đối tượng, chi tiết comment | M |
+| 2.7 | Gộp file: tuỳ chọn và Office | UI 4G, KT 4.2 | Đã làm (Gói E): giữ dấu trang gốc, chuẩn hoá A4, mật khẩu trong hàng, "Mở trong Page Organizer", tải LibreOffice khi cần (~300 MB, hỏi trước; chưa thử trên Windows thật) | Còn thiếu: "OCR file ảnh" (Gói G), cảnh báo font; dấu trang của file khoá mật khẩu không giữ được | S |
 | 2.8 | Menu chuột phải | UI 4G | Chỉ mục "Combine files..." trên Windows | Thiếu "Convert to PDF", "Open with", "Compress/Split"; thiếu menu con "Folioscope ▸"; chưa có bản MSIX cho menu Windows 11 gốc; macOS (Finder Sync + Quick Action) và Linux chưa có | L |
-| 2.9 | Page Organizer: phần còn thiếu | UI 4D | Phần lõi đầy đủ | Thiếu Thay thế trang, Cắt lề (crop), Đánh số trang, chèn từ máy quét/clipboard/ảnh, tách theo bookmark hoặc dung lượng, kéo file từ Explorer vào lưới, hiệu ứng chuyển cảnh chia sẻ | M |
+| 2.9 | Page Organizer: phần còn thiếu | UI 4D | Đã làm (Gói E): Thay thế trang, Cắt lề, Đánh số trang, nút "+" giữa trang, chèn từ clipboard/ảnh, tách theo dấu trang hoặc dung lượng, kéo file từ Explorer vào lưới | Còn thiếu: chèn từ máy quét, hiệu ứng chuyển cảnh chia sẻ | S |
 | 2.10 | Trạng thái và phản hồi | UI 5, 6 | Có toast ở Organizer, thanh tiến trình ở hộp Gộp file | Chưa có hệ toast dùng chung, tiến trình nền ở status bar, hệ component chuẩn (tooltip, menu, popover, ...) | M |
 | 2.11 | Phím tắt | UI 1, 4B, 8 | Một số phím (zoom, panel, `O`, Organizer, công cụ ghi chú) | Thiếu `F4`, `F11`/Focus mode, `Ctrl+K`, `F6` nhảy vùng, `Ctrl+/` bảng phím tắt, `Ctrl+[`, `Ctrl+]`; chưa tuỳ biến được | M |
 | 2.12 | Hiệu năng và bộ nhớ đệm | KT 6 | Thumbnail, render theo trang | Render theo ô (tile), cache RAM + đĩa có giới hạn, ảnh độ phân giải thấp rồi thay nét; chưa có số đo so mục tiêu (mở 500 trang dưới 1 giây) | M |
@@ -94,14 +94,14 @@ Lưu ý còn nợ từ thiết kế: **mở file PDF có mật khẩu** vẫn ph
 | # | Hạng mục | Spec | Ghi chú | Cỡ |
 |---|---|---|---|---|
 | 1.1 | **Màn hình Home** (lời chào, kéo thả, hành động nhanh, file gần đây, ghim, mẫu) | UI 4A | Hiện chỉ có màn "Mở file PDF đầu tiên"; thiếu cả thumbnail file gần đây (cần SQLite) | L |
-| 1.2 | **Chế độ Chỉnh sửa nội dung**: sửa chữ, hộp chữ, ảnh, hình, link | UI 4C, KT 4.1, GĐ5 | Phần khó nhất của dự án; cần module riêng trên lopdf + `rustybuzz` | L |
-| 1.3 | Thanh nổi và bảng Thuộc tính khi chỉnh sửa (font, cỡ, B/I/U, tay nắm, smart guides, scrub số) | UI 4C | Đi cùng 1.2 | L |
+| 1.2 | **Chế độ Chỉnh sửa nội dung**: sửa chữ, hộp chữ, ảnh, hình, link | UI 4C, KT 4.1, GĐ5 | **Gói H đã làm một phần** (sửa chữ, thay/dời/đổi cỡ ảnh, sửa hình vẽ; xem `docs/content-editing.md`); còn thiếu thêm hộp chữ/ảnh/hình mới và sửa link. Phần khó nhất của dự án; cần module riêng trên lopdf + `rustybuzz` | L |
+| 1.3 | Thanh nổi và bảng Thuộc tính khi chỉnh sửa (font, cỡ, B/I/U, tay nắm, smart guides, scrub số) | UI 4C | Gói H đã làm: cỡ chữ, đậm, màu, tay nắm đổi cỡ. Còn thiếu: chọn phông, nghiêng/gạch chân, smart guides. Đi cùng 1.2 | L |
 | 1.4 | Header/footer, watermark, nền trang, đánh số Bates | UI 4C, KT GĐ5 | | M |
-| 1.5 | **Màn hình Convert / Create** (Sang PDF, Từ PDF, Nén, OCR; 2 cột; tiến trình) | UI 4E, KT GĐ4 | Hiện chỉ có Gộp file; nén chưa dùng được riêng lẻ | L |
-| 1.6 | PDF sang Word, Excel, PowerPoint, ảnh, HTML, text, ePub | UI 4E, KT 4.3 | Có nút "Xem trước" trước khi lưu | L |
-| 1.7 | PDF/A | UI 4E, KT GĐ4 | | M |
-| 1.8 | Tạo PDF từ máy quét, ảnh chụp màn hình, trang web, clipboard, template | UI 4E | | M |
-| 1.9 | **OCR và Scan** (tiếng Việt, Anh; làm thẳng, khử nhiễu; sửa từ nghi ngờ) | UI "OCR và Scan", KT GĐ4 | Tesseract 5 + OpenCV | L |
+| 1.5 | **Màn hình Convert / Create** (Sang PDF, Từ PDF, Nén, OCR; 2 cột; tiến trình) | UI 4E, KT GĐ4 | **Đã làm (Gói G, chưa thử trên Windows thật):** hộp thoại "Chuyển đổi và OCR" (Sang PDF, Từ PDF, OCR; tiến trình, huỷ, nhiều file). Chưa có Nén riêng lẻ và 2 cột đúng như mockup. Hiện chỉ có Gộp file; nén chưa dùng được riêng lẻ | L |
+| 1.6 | PDF sang Word, Excel, PowerPoint, ảnh, HTML, text, ePub | UI 4E, KT 4.3 | **Đã làm (Gói G):** Word, Excel, PowerPoint, PNG, JPEG, txt, HTML. Chưa có ePub và nút "Xem trước". Có nút "Xem trước" trước khi lưu | L |
+| 1.7 | PDF/A | UI 4E, KT GĐ4 | **Đã làm (Gói G):** PDF/A-2b từ Word/Excel/PowerPoint/ảnh (đáng tin); từ PDF có sẵn thì dựng lại bằng LibreOffice Draw nên bố cục có thể lệch. | M |
+| 1.8 | Tạo PDF từ máy quét, ảnh chụp màn hình, trang web, clipboard, template | UI 4E | **Một phần (Gói G):** chỉ ảnh sang PDF. Còn thiếu máy quét, chụp màn hình, trang web, clipboard, template. | M |
+| 1.9 | **OCR và Scan** (tiếng Việt, Anh; làm thẳng, khử nhiễu; sửa từ nghi ngờ) | UI "OCR và Scan", KT GĐ4 | **Đã làm (Gói G, chưa thử trên Windows thật):** OCR tiếng Việt và Anh bằng Tesseract tải khi cần, cho ảnh, PDF quét và ảnh trong Gộp file. Chưa có làm thẳng/khử nhiễu bằng OpenCV, sửa từ nghi ngờ. Tesseract 5 + OpenCV | L |
 | 1.10 | **So sánh hai bản** (theo chữ và theo hình, cuộn đồng bộ) | UI "So sánh", KT 4.4 | | L |
 | 1.11 | **Trợ lý AI** (tóm tắt, hỏi đáp có trích trang, dịch, viết lại, trích bảng) | UI "AI Assistant", KT 4.5 | Chế độ qua mạng đã chọn; cần nơi lưu khoá API trong kho khoá hệ điều hành | L |
 | 1.12 | **Command Palette** (`Ctrl+K`) | UI "Command Palette" | Cần danh sách lệnh chung trước | M |

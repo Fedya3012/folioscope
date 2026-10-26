@@ -2,6 +2,8 @@ import { SEARCH_INPUT_ID } from "./components/SearchPanel";
 import { registerCommands, type Command } from "./lib/shortcuts";
 import { cycleTab } from "./lib/tabs";
 import { redo, registerUndoScope, undo } from "./lib/undo";
+import { useEdit } from "./edit/store";
+import { usePalette } from "./lib/paletteStore";
 import { useAnnot } from "./annotations/store";
 import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
@@ -20,10 +22,14 @@ export function registerAppCommands(openFile: () => void): () => void {
 
   const cmds: Command[] = [
     { id: "file.open", label: "Mở file…", group: "Tệp", keys: ["Mod+O"], typing: "allow", run: openFile },
+    { id: "convert.open", label: "Chuyển đổi file…", group: "Tệp", keys: [], typing: "allow", run: () => window.dispatchEvent(new CustomEvent("folioscope:convert", { detail: "to_pdf" })) },
+    { id: "ocr.open", label: "OCR: nhận dạng chữ…", group: "Tệp", keys: [], typing: "allow", run: () => window.dispatchEvent(new CustomEvent("folioscope:convert", { detail: "ocr" })) },
     { id: "tab.close", label: "Đóng tab", group: "Tệp", keys: ["Mod+W"], typing: "allow", when: () => !!st().path, run: () => st().closeTab(st().path!) },
     { id: "tab.next", label: "Tab sau", group: "Tệp", keys: ["Mod+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(1) },
     { id: "tab.prev", label: "Tab trước", group: "Tệp", keys: ["Mod+Shift+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(-1) },
     { id: "settings.open", label: "Cài đặt", group: "Ứng dụng", keys: ["Mod+,"], typing: "allow", run: () => st().setSettingsOpen(true) },
+    { id: "palette.open", label: "Bảng lệnh", group: "Ứng dụng", keys: ["Mod+Shift+P"], typing: "allow", run: () => usePalette.getState().setOpen(true) },
+    { id: "theme.toggle", label: "Đổi chủ đề sáng/tối", group: "Giao diện", keys: [], typing: "allow", run: () => st().toggleTheme() },
     { id: "panel.left", label: "Ẩn/hiện bảng trái", group: "Giao diện", keys: ["Mod+\\", "F4"], typing: "allow", run: () => st().togglePanel("left") },
     { id: "panel.right", label: "Ẩn/hiện bảng phải", group: "Giao diện", keys: ["Mod+Shift+\\"], typing: "allow", run: () => st().togglePanel("right") },
     { id: "view.zoomIn", label: "Phóng to", group: "Xem", keys: ["Mod+=", "Mod++"], typing: "allow", run: () => st().zoomBy(1) },
@@ -55,7 +61,7 @@ export function registerAppCommands(openFile: () => void): () => void {
   ];
 
   const off = registerCommands(cmds);
-  // Hai tính năng đã có lịch sử riêng tham gia hoàn tác toàn cục theo chế độ đang mở.
+  // Ba tính năng đã có lịch sử riêng tham gia hoàn tác toàn cục theo chế độ đang mở.
   const offOrg = registerUndoScope({
     id: "organizer", active: () => st().mode === "pages",
     canUndo: () => useOrganizer.getState().history.past.length > 0, canRedo: () => useOrganizer.getState().history.future.length > 0,
@@ -66,5 +72,10 @@ export function registerAppCommands(openFile: () => void): () => void {
     canUndo: () => useAnnot.getState().past.length > 0, canRedo: () => useAnnot.getState().future.length > 0,
     undo: () => useAnnot.getState().undo(), redo: () => useAnnot.getState().redo(),
   });
-  return () => { off(); offOrg(); offAnnot(); };
+  const offEdit = registerUndoScope({
+    id: "content-edit", active: () => st().mode === "edit",
+    canUndo: () => useEdit.getState().past.length > 0, canRedo: () => useEdit.getState().future.length > 0,
+    undo: () => useEdit.getState().undo(), redo: () => useEdit.getState().redo(),
+  });
+  return () => { off(); offOrg(); offAnnot(); offEdit(); };
 }

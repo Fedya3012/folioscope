@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import { COLORS, DEFAULT_COLOR, type Annotation, type Tool } from "./types";
+import { db } from "../lib/db";
+import { DEFAULT_SCALE, type MeasureScale } from "./measure";
+import { COLORS, DEFAULT_COLOR, STAMPS, type Annotation, type Tool } from "./types";
+
+const SCALE_KEY = "folioscope.measureScale";
+const AUTHOR_KEY = "folioscope.author";
 
 interface AnnotState {
   items: Annotation[];
@@ -11,6 +16,15 @@ interface AnnotState {
   past: Annotation[][];
   future: Annotation[][];
   dirty: boolean;
+  stamp: string;
+  scale: MeasureScale;
+  author: string;
+  setStamp(label: string): void;
+  setScale(p: Partial<MeasureScale>): void;
+  setAuthor(name: string): void;
+  /** Sửa thuộc tính của một ghi chú và ghi vào lịch sử hoàn tác (một bước). */
+  update(id: string, a: Partial<Annotation>): void;
+  addReply(id: string, text: string): void;
   setTool(t: Tool): void;
   setStyle(p: { color?: string; strokeWidth?: number }): void;
   select(id: string | null): void;
@@ -34,8 +48,23 @@ export const useAnnot = create<AnnotState>((set, get) => {
     set((s) => ({ items, past: [...s.past, s.items].slice(-LIMIT), future: [], dirty: true }));
   return {
     items: [], tool: "select", color: DEFAULT_COLOR, strokeWidth: 2,
+    stamp: STAMPS[0].label, scale: (db.getJson(SCALE_KEY) as MeasureScale | null) ?? DEFAULT_SCALE, author: (db.getJson(AUTHOR_KEY) as string | null) ?? "Tôi",
     selectedId: null, editingId: null, past: [], future: [], dirty: false,
 
+    setStamp: (stamp) => set({ stamp }),
+    setScale(p) {
+      const scale = { ...get().scale, ...p };
+      if (!(scale.ratio > 0)) return;
+      set({ scale }); db.setJson(SCALE_KEY, scale);
+    },
+    setAuthor(author) { set({ author }); db.setJson(AUTHOR_KEY, author); },
+    update(id, a) { commit(get().items.map((x) => (x.id === id ? { ...x, ...a } : x))); },
+    addReply(id, text) {
+      const t = text.trim();
+      if (!t) return;
+      const { items, author } = get();
+      commit(items.map((x) => (x.id === id ? { ...x, replies: [...(x.replies ?? []), { id: uid(), author, at: Date.now(), text: t }] } : x)));
+    },
     setTool: (tool) => set({ tool, selectedId: null, editingId: null }),
     setStyle(p) {
       const { selectedId, items } = get();
@@ -46,7 +75,7 @@ export const useAnnot = create<AnnotState>((set, get) => {
     },
     select: (selectedId) => set({ selectedId, editingId: null }),
     edit: (editingId) => set({ editingId }),
-    add(a) { commit([...get().items, { ...a, id: a.id || uid() }]); set({ selectedId: a.id || null }); },
+    add(a) { commit([...get().items, { ...a, id: a.id || uid(), author: get().author, at: Date.now(), status: a.kind === "note" ? "open" : undefined }]); set({ selectedId: a.id || null }); },
     patch: (id, a) => set((s) => ({ items: s.items.map((x) => (x.id === id ? { ...x, ...a } : x)), dirty: true })),
     checkpoint: () => set((s) => ({ past: [...s.past, s.items].slice(-LIMIT), future: [] })),
     remove(id) { commit(get().items.filter((a) => a.id !== id)); set({ selectedId: null, editingId: null }); },

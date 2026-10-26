@@ -61,13 +61,40 @@ pub fn find_office() -> Option<PathBuf> {
     ];
     if let Some(p) = fixed.iter().map(PathBuf::from).find(|p| p.is_file()) { return Some(p); }
     let exe = if cfg!(windows) { "soffice.exe" } else { "soffice" };
-    std::env::var_os("PATH")
-        .and_then(|paths| std::env::split_paths(&paths).map(|d| d.join(exe)).find(|p| p.is_file()))
+    let on_path = std::env::var_os("PATH")
+        .and_then(|paths| std::env::split_paths(&paths).map(|d| d.join(exe)).find(|p| p.is_file()));
+    // Bản app tự tải về (xem office_install) đứng cuối: máy đã có LibreOffice thì dùng bản đó.
+    on_path.or_else(crate::office_install::find_managed)
 }
 
 const OFFICE_TIMEOUT: Duration = Duration::from_secs(300);
 
 fn office_to_pdf(src: &Path, workdir: &Path, soffice: &Path, cancel: &CancelFlag) -> Result<PathBuf, CombineError> {
+    run_office(src, workdir, soffice, cancel, None, "pdf")
+}
+
+/// Bộ lọc xuất PDF/A-2b theo loại file nguồn (LibreOffice cần đúng tên bộ lọc để nhận tuỳ chọn).
+pub fn pdfa_target(src: &Path) -> &'static str {
+    let ext = src.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    match ext.as_str() {
+        "xls" | "xlsx" | "xlsm" | "ods" | "csv" => r#"pdf:calc_pdf_Export:{"SelectPdfVersion":{"type":"long","value":"2"}}"#,
+        "ppt" | "pptx" | "pptm" | "odp" => r#"pdf:impress_pdf_Export:{"SelectPdfVersion":{"type":"long","value":"2"}}"#,
+        // PDF nạp lại bằng Draw cũng xuất bằng bộ lọc Draw.
+        "pdf" => r#"pdf:draw_pdf_Export:{"SelectPdfVersion":{"type":"long","value":"2"}}"#,
+        _ => r#"pdf:writer_pdf_Export:{"SelectPdfVersion":{"type":"long","value":"2"}}"#,
+    }
+}
+
+/// Chạy LibreOffice ngầm: `infilter` chọn bộ nhập (ví dụ đọc PDF như tài liệu Writer), `target` là đối số của `--convert-to`.
+/// Phần trước dấu `:` đầu tiên của `target` là đuôi file kết quả.
+pub fn run_office(
+    src: &Path,
+    workdir: &Path,
+    soffice: &Path,
+    cancel: &CancelFlag,
+    infilter: Option<&str>,
+    target: &str,
+) -> Result<PathBuf, CombineError> {
     // Mỗi lần chuyển dùng thư mục riêng và hồ sơ người dùng riêng: tránh khoá khi LibreOffice đang mở sẵn trên máy.
     let out_dir = workdir.join(format!("out-{}", unique()));
     let profile = workdir.join(format!("profile-{}", unique()));
@@ -75,8 +102,11 @@ fn office_to_pdf(src: &Path, workdir: &Path, soffice: &Path, cancel: &CancelFlag
 
     let mut cmd = Command::new(soffice);
     cmd.args(["--headless", "--norestore", "--nolockcheck", "--nodefault", "--nologo"])
-        .arg(format!("-env:UserInstallation={}", file_url(&profile)))
-        .args(["--convert-to", "pdf", "--outdir"])
+        .arg(format!("-env:UserInstallation={}", file_url(&profile)));
+    if let Some(f) = infilter {
+        cmd.arg(format!("--infilter={f}"));
+    }
+    cmd.args(["--convert-to", target, "--outdir"])
         .arg(&out_dir)
         .arg(src)
         .stdout(Stdio::null())
@@ -105,12 +135,13 @@ fn office_to_pdf(src: &Path, workdir: &Path, soffice: &Path, cancel: &CancelFlag
         std::thread::sleep(Duration::from_millis(100));
     }
 
+    let ext = target.split(':').next().unwrap_or("pdf");
     let stem = src.file_stem().unwrap_or_default();
-    let pdf = out_dir.join(stem).with_extension("pdf");
-    if pdf.is_file() { Ok(pdf) } else { Err(file_err(src, "LibreOffice không tạo ra file PDF")) }
+    let out = out_dir.join(stem).with_extension(ext);
+    if out.is_file() { Ok(out) } else { Err(file_err(src, "LibreOffice không tạo ra file kết quả")) }
 }
 
-fn unique() -> u64 {
+pub fn unique() -> u64 {
     use std::sync::atomic::{AtomicU64, Ordering};
     static N: AtomicU64 = AtomicU64::new(0);
     N.fetch_add(1, Ordering::SeqCst)
@@ -122,12 +153,12 @@ fn file_url(p: &Path) -> String {
 }
 
 #[cfg(windows)]
-fn hide_console(cmd: &mut Command) {
+pub fn hide_console(cmd: &mut Command) {
     use std::os::windows::process::CommandExt;
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
 }
 #[cfg(not(windows))]
-fn hide_console(_: &mut Command) {}
+pub fn hide_console(_: &mut Command) {}
 
 /// Khổ A4 theo điểm PDF; ảnh lớn hơn được thu nhỏ vừa khổ này (giữ tỉ lệ), ảnh nhỏ giữ nguyên cỡ ở 96 dpi.
 const A4: (f32, f32) = (595.0, 842.0);

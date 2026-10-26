@@ -12,6 +12,11 @@ const keyOf = (path: string, index: number, width: number) => `${path}\u0000${in
 /** Ảnh đã có sẵn trong bộ nhớ đệm (dùng cho hình khi đang kéo). */
 export const cachedThumb = (path: string, index: number, width: number) => cache.get(keyOf(path, index, width));
 
+/** Bỏ ảnh đệm của một file (khi file vừa bị ghi đè). */
+export function clearThumbs(path: string) {
+  for (const k of [...cache.keys()]) if (k.startsWith(`${path}\u0000`)) cache.delete(k);
+}
+
 type Job = { run: () => void; cancelled: boolean };
 const queue: Job[] = [];
 let running = 0;

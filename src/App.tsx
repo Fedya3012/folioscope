@@ -8,20 +8,31 @@ import { SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
 import { Viewer } from "./components/Viewer";
 import { CombineDialog } from "./components/CombineDialog";
+import { ConvertDialog } from "./components/ConvertDialog";
+import { OcrInstallDialog } from "./components/OcrInstallDialog";
 import { Home } from "./components/Home";
 import { Icon } from "./components/Icon";
 import { ConfirmClose, TabBar } from "./components/TabBar";
 import { Settings } from "./components/Settings";
+import { CommandPalette } from "./components/CommandPalette";
+import { usePalette } from "./lib/paletteStore";
+import { loadKeymap } from "./lib/keymap";
 import { routeDrop } from "./lib/recent";
 import { installShortcuts } from "./lib/shortcuts";
 import { registerAppCommands } from "./appCommands";
 import { Toaster } from "./components/Toaster";
 import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput } from "./lib/viewer";
 import { PasswordDialog } from "./components/PasswordDialog";
+import { OfficeInstallDialog } from "./components/OfficeInstallDialog";
 import { ViewControls } from "./components/ViewControls";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
-import { pickPdf, takeLaunchFiles } from "./lib/api";
+import { EditBar } from "./edit/EditBar";
+import { EditLayer } from "./edit/EditLayer";
+import { EditPanel } from "./edit/EditPanel";
+import { useEdit } from "./edit/store";
+import { AnnotationPanel } from "./annotations/AnnotationPanel";
+import { pickPdf, takeLaunchFiles, type ConvertTarget } from "./lib/api";
 import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
 
@@ -33,6 +44,8 @@ const MODES: [Mode, string][] = [
 
 export function App() {
   const s = useStore();
+  const thumbRev = useEdit((e) => e.rev);
+  const editCount = useEdit((e) => Object.keys(e.edits).length);
   const pagesDirty = useOrganizer((o) => o.history.past.length > 0);
   const organizing = s.mode === "pages";
   const [pageText, setPageText] = useState("");
@@ -55,12 +68,21 @@ export function App() {
 
   // Một bộ nghe phím duy nhất; các lệnh nằm ở appCommands.ts (và mỗi màn hình đăng ký thêm lệnh của nó).
   useEffect(() => installShortcuts(), []);
-  useEffect(() => registerAppCommands(() => void openRef.current()), []);
+  useEffect(() => { const off = registerAppCommands(() => void openRef.current()); loadKeymap(); return off; }, []);
+  const paletteOpen = usePalette((p) => p.open);
 
   const openRef = useRef<() => Promise<void>>(async () => {});
   // null = đóng; mảng = mở hộp thoại Gộp file với các file ban đầu này.
   const [combine, setCombine] = useState<string[] | null>(null);
   const closeCombine = useCallback(() => setCombine(null), []);
+  // Màn hình Chuyển đổi và OCR: null = đóng.
+  const [convert, setConvert] = useState<{ files: string[]; target: ConvertTarget } | null>(null);
+  const closeConvert = useCallback(() => setConvert(null), []);
+  useEffect(() => {
+    const open = (e: Event) => setConvert({ files: [], target: (e as CustomEvent<ConvertTarget>).detail ?? "to_pdf" });
+    window.addEventListener("folioscope:convert", open);
+    return () => window.removeEventListener("folioscope:convert", open);
+  }, []);
 
   // File đến từ menu chuột phải của Windows (lúc khởi động hoặc khi app đã mở sẵn).
   useEffect(() => {
@@ -76,12 +98,13 @@ export function App() {
 
   // Kéo thả file vào cửa sổ. Khi hộp thoại Gộp file đang mở thì để nó tự xử lý.
   const combineOpen = useRef(false);
-  combineOpen.current = combine !== null;
+  combineOpen.current = combine !== null || convert !== null;
   const [dragOver, setDragOver] = useState(false);
   useEffect(() => {
     const sub = getCurrentWebview().onDragDropEvent((e) => {
       const t = e.payload.type;
-      if (combineOpen.current) { setDragOver(false); return; }
+      // Hộp thoại Gộp file và màn hình Trang tự xử lý file thả vào (Trang chèn đúng chỗ thả).
+      if (combineOpen.current || useStore.getState().mode === "pages") { setDragOver(false); return; }
       if (t === "enter" || t === "over") setDragOver(true);
       else if (t === "leave") setDragOver(false);
       else if (t === "drop") {
@@ -109,12 +132,13 @@ export function App() {
       </header>
 
       {onHome ? (
-        <Home onOpenDialog={open} onOpenPath={(p) => void s.load(p)} onCombine={setCombine} />
+        <Home onOpenDialog={open} onOpenPath={(p) => void s.load(p)} onCombine={setCombine} onConvert={(target) => setConvert({ files: [], target })} />
       ) : (<>
 
       <div className="toolbar" role="toolbar" aria-label="Công cụ chính">
         <button className="btn secondary" onClick={open}>Mở file…</button>
         <button className="btn secondary" onClick={() => setCombine([])}>Gộp file…</button>
+        <button className="btn secondary" onClick={() => setConvert({ files: [], target: "to_pdf" })}>Chuyển đổi / OCR…</button>
         <div className="segmented" role="group" aria-label="Công cụ con trỏ">
           <button aria-pressed={s.tool === "select"} onClick={() => s.setTool("select")} title="Chọn chữ">Chọn chữ</button>
           <button aria-pressed={s.tool === "hand"} onClick={() => s.setTool("hand")} title="Kéo trang">Bàn tay</button>
@@ -133,7 +157,7 @@ export function App() {
         <button className="btn ghost" aria-pressed={s.rightOpen} onClick={() => s.togglePanel("right")}>Thuộc tính</button>
       </div>
 
-      <div className="annot-slot"><AnnotateBar /></div>
+      <div className="annot-slot"><AnnotateBar /><EditBar /></div>
 
       <div className="workspace">
         <nav className="rail" aria-label="Điều hướng">
@@ -145,7 +169,7 @@ export function App() {
           <>
             <aside className="panel left" style={{ width: s.leftWidth }} aria-label={TAB_TITLES[s.leftTab]}>
               <h2>{TAB_TITLES[s.leftTab]}</h2>
-              {s.leftTab === "thumbs" && <Thumbnails />}
+              {s.leftTab === "thumbs" && <Thumbnails key={thumbRev} />}
               {s.leftTab === "outline" && <Outline />}
               {s.leftTab === "search" && <SearchPanel />}
             </aside>
@@ -154,7 +178,7 @@ export function App() {
         )}
 
         <main className="canvas">
-          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /><ViewControls /></> : (
+          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /><EditLayer /><ViewControls /></> : (
             <div className="empty">
               <h1>Mở file PDF đầu tiên của bạn</h1>
               <p>{s.error ?? "Chọn một file để xem, hoặc kéo file PDF thả vào cửa sổ."}</p>
@@ -168,7 +192,7 @@ export function App() {
             <Resizer side="right" onDrag={(w) => s.dragPanel("right", w)} />
             <aside className="panel right" style={{ width: s.rightWidth }} aria-label="Thuộc tính">
               <h2>Thuộc tính</h2>
-              <div className="body">Chọn một đối tượng để xem thuộc tính.</div>
+              {s.mode === "edit" ? <EditPanel /> : s.mode === "annotate" ? <AnnotationPanel /> : <div className="body">Chọn một đối tượng để xem thuộc tính.</div>}
             </aside>
           </>
         )}
@@ -191,6 +215,7 @@ export function App() {
         <span>/ {s.info ? s.info.page_count : "—"}</span>
         <button className="btn ghost" aria-label="Trang sau" disabled={!s.info || s.currentPage >= s.info.page_count - 1} onClick={() => s.goToPage(s.currentPage + 1)}>›</button>
         {pagesDirty && <span>Có thay đổi trang chưa lưu</span>}
+        {editCount > 0 && <span>Có {editCount} sửa đổi nội dung chưa lưu</span>}
         <span className="spacer" />
         <button className="btn ghost" title="Đổi màu nền trang" onClick={() => s.setPageTheme(nextPageTheme(s.pageTheme))}>{PAGE_THEME_LABEL[s.pageTheme]}</button>
         <button className="btn ghost" onClick={() => s.setFit("width")} aria-pressed={s.fit === "width"}>Vừa bề rộng</button>
@@ -201,11 +226,16 @@ export function App() {
       </footer>
       </>)}
       <PasswordDialog />
+      <OfficeInstallDialog />
+      <OcrInstallDialog />
       <ConfirmClose />
       <Toaster />
       {s.settingsOpen && <Settings />}
+      {paletteOpen && <CommandPalette />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
-      {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}
+      {convert && <ConvertDialog initial={convert.files} initialTarget={convert.target} onClose={closeConvert} onOpenResult={(p) => void s.load(p)} />}
+      {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)}
+        onOpenInOrganizer={(paths) => void useOrganizer.getState().openFiles(paths)} />}
     </div>
   );
 }

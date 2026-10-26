@@ -22,6 +22,9 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 thiserror = "2"
 lopdf = "0.46"
 rusqlite = { version = "0.37", features = ["bundled"] }
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }
+sha2 = "0.10"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"

@@ -16,22 +16,61 @@ export async function pickPdf(): Promise<string | null> {
 
 // ---- Gộp file ----
 export type FileKind = "pdf" | "image" | "office" | "unsupported";
-export type FileProbe = { path: string; name: string; kind: FileKind; size: number; pages: number | null; error: string | null };
+export type FileProbe = {
+  path: string; name: string; kind: FileKind; size: number; pages: number | null; error: string | null;
+  /** PDF có mật khẩu (chưa nhập hoặc nhập sai). */
+  needs_password: boolean;
+};
 export type CompressionLevel = "none" | "balanced" | "max";
 export type CombineRequest = {
-  files: { path: string; title: string }[];
+  files: { path: string; title: string; password?: string | null }[];
   output: string;
   bookmarks: boolean;
+  /** Giữ dấu trang gốc của từng PDF. */
+  keep_bookmarks: boolean;
+  /** Đưa mọi trang về khổ A4. */
+  normalize_a4: boolean;
   compression: CompressionLevel;
+  /** Nhận dạng chữ (OCR) cho file ảnh để PDF kết quả tìm kiếm được. */
+  ocr_images: boolean;
+  ocr_lang: string;
 };
 export type CombineProgress = { stage: "convert" | "merge" | "optimize" | "write"; current: number; total: number; file: string | null; percent: number };
 export type CombineResult = { output: string; pages: number; bytes: number; converted: number };
 export type MenuStatus = { supported: boolean; installed: boolean };
 
-export const probeFiles = (paths: string[]) => invoke<FileProbe[]>("probe_files", { paths });
+export const probeFiles = (paths: string[], password?: string) =>
+  invoke<FileProbe[]>("probe_files", { paths, password: password ?? null });
 export const officeStatus = () => invoke<string | null>("office_status");
 export const combineFiles = (request: CombineRequest) => invoke<CombineResult>("combine_files", { request });
 export const cancelCombine = () => invoke<void>("cancel_combine");
+
+// ---- Bộ chuyển đổi Office (LibreOffice tải khi cần) ----
+export type OfficeProgress = { stage: "find" | "download" | "verify" | "extract" | "done"; percent: number | null; downloaded: number; total: number };
+export const officeInstallSupported = () => invoke<boolean>("office_install_supported");
+export const officeInstall = () => invoke<string>("office_install");
+export const officeInstallCancel = () => invoke<void>("office_install_cancel");
+
+// ---- OCR (Tesseract tải khi cần) ----
+export type OcrProgress = OfficeProgress;
+export const ocrStatus = () => invoke<string | null>("ocr_status");
+export const ocrInstallSupported = () => invoke<boolean>("ocr_install_supported");
+export const ocrInstall = () => invoke<string>("ocr_install");
+export const ocrInstallCancel = () => invoke<void>("ocr_install_cancel");
+
+// ---- Chuyển đổi và OCR ----
+export type ConvertTarget = "to_pdf" | "docx" | "xlsx" | "pptx" | "png" | "jpg" | "txt" | "html" | "ocr";
+export type ConvertRequest = { files: string[]; out_dir: string; target: ConvertTarget; pdfa: boolean; lang: string; dpi: number };
+export type ConvertItemResult = { input: string; outputs: string[]; error: string | null };
+export type ConvertProgress = { current: number; total: number; file: string | null; percent: number; detail: string | null };
+/** Lỗi `OFFICE_MISSING` / `OCR_MISSING` = cần cài LibreOffice / Tesseract trước. */
+export const convertRun = (request: ConvertRequest) => invoke<ConvertItemResult[]>("convert_run", { request });
+export const convertCancel = () => invoke<void>("convert_cancel");
+
+/** Đưa file về PDF để chèn vào tài liệu (PDF giữ nguyên; ảnh, Word, Excel, PowerPoint được chuyển). Lỗi `OFFICE_MISSING` = cần cài LibreOffice. */
+export const preparePdf = (path: string) => invoke<string>("prepare_pdf", { path });
+export const saveClipboardImage = (pngBase64: string) => invoke<string>("save_clipboard_image", { pngBase64 });
+export const fileSize = (path: string) => invoke<number>("file_size", { path });
 export const takeLaunchFiles = () => invoke<string[]>("take_launch_files");
 export const shellMenuStatus = () => invoke<MenuStatus>("shell_menu_status");
 export const shellMenuInstall = () => invoke<void>("shell_menu_install");
@@ -57,7 +96,12 @@ export async function pickCombineOutput(defaultPath: string): Promise<string | n
   return save({ defaultPath, filters: [{ name: "PDF", extensions: ["pdf"] }] });
 }
 /** Một trang của tài liệu kết quả khi ghi file (khớp `PageRef` ở Rust). */
-export type PageRef = { source: string | null; index: number; rotate: number; width: number; height: number };
+export type PageRef = {
+  source: string | null; index: number; rotate: number; width: number; height: number;
+  /** Cắt lề [trái, trên, phải, dưới] (pt). */
+  crop: [number, number, number, number] | null;
+  stamp: { text: string; pos: string; size: number; margin: number } | null;
+};
 
 export const exportPages = (pages: PageRef[], output: string) =>
   invoke<number>("export_pages", { pages, output });
@@ -81,3 +125,31 @@ export const getOutline = (path: string) => invoke<OutlineItem[]>("get_outline",
 export const getTextRuns = (path: string, index: number) => invoke<TextRun[]>("get_text_runs", { path, index });
 export const searchText = (path: string, query: string, matchCase: boolean) =>
   invoke<SearchResult>("search_text", { path, query, matchCase });
+
+// ---- Sửa nội dung PDF (Gói H) ----
+export type ObjKind = "text" | "image" | "shape" | "group";
+/** Một đối tượng trên trang (chữ, ảnh, hình vẽ, nhóm); `id` là số thứ tự trong trang của file gốc. */
+export type PageObj = {
+  id: number; kind: ObjKind; rect: NormRect;
+  text: string | null; size: number | null; font: string | null; bold: boolean; italic: boolean;
+  fill: string | null; stroke: string | null; strokeWidth: number | null;
+};
+export type ObjEdit = {
+  page: number; id: number; deleted?: boolean; rect?: NormRect; text?: string; size?: number; bold?: boolean;
+  /** "#RRGGBB" hoặc "none". */
+  fill?: string; stroke?: string; strokeWidth?: number; image?: string;
+};
+export type IdRect = { id: number; rect: NormRect };
+export type EditedRender = { page: RenderedPage; rects: IdRect[] };
+export type SaveEditsResult = { applied: number; font_fallback: boolean };
+
+export const listPageObjects = (path: string, index: number) => invoke<PageObj[]>("list_page_objects", { path, index });
+export const renderPageEdited = (path: string, index: number, width: number, edits: ObjEdit[]) =>
+  invoke<EditedRender>("render_page_edited", { path, index, width, edits });
+export const saveContentEdits = (path: string, out: string, edits: ObjEdit[]) =>
+  invoke<SaveEditsResult>("save_content_edits", { path, out, edits });
+
+export async function pickImage(): Promise<string | null> {
+  const picked = await open({ multiple: false, filters: [{ name: "Ảnh", extensions: ["png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "webp"] }] });
+  return typeof picked === "string" ? picked : null;
+}

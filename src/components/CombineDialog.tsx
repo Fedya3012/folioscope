@@ -6,8 +6,11 @@ import {
   cancelCombine, combineFiles, officeStatus, pickFilesToCombine, probeFiles, shellMenuInstall, shellMenuStatus,
   shellMenuUninstall, type CombineProgress, type CombineResult, type CompressionLevel, type MenuStatus,
 } from "../lib/api";
+import { ensureOffice } from "../lib/office";
+import { ensureOcr } from "../lib/ocr";
+import { OCR_LANGS } from "../lib/convert";
 import {
-  appendUnique, blocked, COMPRESSION_LABELS, dirOf, formatBytes, moveItem, needsOffice, progressLabel, sanitizeFileName,
+  appendUnique, applyProbe, blocked, COMPRESSION_LABELS, dirOf, formatBytes, moveItem, needsOffice, progressLabel, sanitizeFileName,
   suggestOutput, totalPages, type Item,
 } from "../lib/combine";
 
@@ -16,11 +19,18 @@ type Phase = "edit" | "running" | "done";
 const KIND_LABEL = { pdf: "PDF", image: "Ảnh → PDF", office: "Chuyển sang PDF", unsupported: "Không hỗ trợ" } as const;
 
 /** Hộp thoại "Gộp file": sắp xếp, dấu trang, nén, tên file kết quả, tiến trình. */
-export function CombineDialog({ initial, onClose, onOpenResult }: {
+export function CombineDialog({ initial, onClose, onOpenResult, onOpenInOrganizer }: {
   initial: string[]; onClose: () => void; onOpenResult: (path: string) => void;
+  /** Mở các file (theo thứ tự đang xếp) trong Page Organizer để chỉnh từng trang trước khi gộp. */
+  onOpenInOrganizer?: (paths: string[]) => void;
 }) {
   const [items, setItems] = useState<Item[]>([]);
   const [bookmarks, setBookmarks] = useState(true);
+  const [keepBookmarks, setKeepBookmarks] = useState(false);
+  const [normalizeA4, setNormalizeA4] = useState(false);
+  const [ocrImages, setOcrImages] = useState(false);
+  const [ocrLang, setOcrLang] = useState("vie+eng");
+  const [pwDraft, setPwDraft] = useState<Record<number, string>>({});
   const [compression, setCompression] = useState<CompressionLevel>("balanced");
   const [dir, setDir] = useState("");
   const [name, setName] = useState("");
@@ -74,18 +84,38 @@ export function CombineDialog({ initial, onClose, onOpenResult }: {
   }, [phase, onClose]);
 
   const problems = blocked(items);
-  const missingOffice = needsOffice(items) && office === null;
+  const willAskOffice = needsOffice(items) && office === null;
   const fileName = sanitizeFileName(name);
   const sep = dir.includes("\\") ? "\\" : "/";
   const output = `${dir}${dir && !/[\\/]$/.test(dir) ? sep : ""}${fileName}`;
-  const canRun = phase === "edit" && items.length > 0 && !problems.length && !missingOffice && !!dir;
+  const canRun = phase === "edit" && items.length > 0 && !problems.length && !!dir;
+
+  /** Nhập mật khẩu cho một hàng: đọc lại file; đúng thì hàng hết lỗi và nhớ mật khẩu để gộp. */
+  const unlock = async (it: Item) => {
+    const pw = pwDraft[it.id] ?? "";
+    if (!pw) return;
+    try {
+      const [probe] = await probeFiles([it.path], pw);
+      if (probe) setItems((cur) => applyProbe(cur, it.id, probe, pw));
+      if (probe?.error) setPwDraft((d) => ({ ...d, [it.id]: "" }));
+    } catch (e) { setError(String(e)); }
+  };
 
   const run = async () => {
-    setPhase("running"); setError(null); setProgress(null);
+    setError(null);
+    // Lần đầu có Word/Excel/PowerPoint mà máy chưa có bộ chuyển đổi: hỏi cài rồi mới chạy.
+    if (needsOffice(items)) {
+      if (!(await ensureOffice())) { setError("Chưa có bộ chuyển đổi Word, Excel, PowerPoint. Bỏ các file đó ra hoặc cài bộ chuyển đổi rồi gộp lại."); return; }
+      officeStatus().then(setOffice).catch(() => {});
+    }
+    const useOcr = ocrImages && items.some((i) => i.kind === "image");
+    if (useOcr && !(await ensureOcr())) { setError("Chưa có bộ nhận dạng chữ (Tesseract). Bỏ chọn OCR hoặc cài bộ nhận dạng rồi gộp lại."); return; }
+    setPhase("running"); setProgress(null);
     try {
       setResult(await combineFiles({
-        files: items.map((i) => ({ path: i.path, title: bookmarks ? i.title : "" })),
-        output, bookmarks, compression,
+        files: items.map((i) => ({ path: i.path, title: bookmarks ? i.title : "", password: i.password ?? null })),
+        output, bookmarks, keep_bookmarks: keepBookmarks, normalize_a4: normalizeA4, compression,
+        ocr_images: useOcr, ocr_lang: ocrLang,
       }));
       setPhase("done");
     } catch (e) {
@@ -150,7 +180,15 @@ export function CombineDialog({ initial, onClose, onOpenResult }: {
                         {it.error ? <span className="err">{it.error}</span> : <>{KIND_LABEL[it.kind]}{it.pages ? ` · ${it.pages} trang` : ""} · {formatBytes(it.size)}</>}
                       </small>
                     </div>
-                    {bookmarks && (
+                    {it.needs_password ? (
+                      <span className="pw">
+                        <input type="password" autoComplete="off" aria-label={`Mật khẩu của ${it.name}`} placeholder="Mật khẩu của file này"
+                          value={pwDraft[it.id] ?? ""} disabled={phase === "running"}
+                          onChange={(e) => setPwDraft((d) => ({ ...d, [it.id]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === "Enter") void unlock(it); }} />
+                        <button className="btn secondary" disabled={!(pwDraft[it.id] ?? "") || phase === "running"} onClick={() => void unlock(it)}>Mở khoá</button>
+                      </span>
+                    ) : bookmarks && (
                       <input className="title" aria-label={`Tên dấu trang của ${it.name}`} value={it.title} disabled={phase === "running"}
                         onChange={(e) => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, title: e.target.value } : x))} />
                     )}
@@ -164,13 +202,24 @@ export function CombineDialog({ initial, onClose, onOpenResult }: {
               </ol>
             )}
 
-            {missingOffice && (
-              <p className="notice warn">Có file Word/Excel/PowerPoint/txt/HTML nhưng chưa tìm thấy LibreOffice để chuyển sang PDF. Hãy cài LibreOffice (miễn phí, libreoffice.org) rồi mở lại hộp thoại này, hoặc bỏ các file đó ra.</p>
+            {willAskOffice && (
+              <p className="notice warn">Có file Word, Excel, PowerPoint, txt hoặc HTML. Để chuyển chúng sang PDF, Folioscope cần bộ chuyển đổi (LibreOffice, miễn phí). Khi bạn bấm Gộp file, app sẽ hỏi có cài không (khoảng 350 MB, chỉ cài một lần).</p>
             )}
 
             <fieldset disabled={phase === "running"}>
               <legend>Tuỳ chọn</legend>
               <label className="check"><input type="checkbox" checked={bookmarks} onChange={(e) => setBookmarks(e.target.checked)} /> Tạo dấu trang cho mỗi file (sửa tên ngay trong danh sách)</label>
+              <label className="check"><input type="checkbox" checked={keepBookmarks} onChange={(e) => setKeepBookmarks(e.target.checked)} /> Giữ dấu trang gốc của từng file PDF (nằm dưới dấu trang của file đó; file có mật khẩu không giữ được)</label>
+              <label className="check"><input type="checkbox" checked={normalizeA4} onChange={(e) => setNormalizeA4(e.target.checked)} /> Chuẩn hoá khổ giấy về A4 (co vừa, giữ tỉ lệ, trang ngang dùng A4 ngang)</label>
+              {items.some((i) => i.kind === "image") && (
+                <label className="check">
+                  <input type="checkbox" checked={ocrImages} onChange={(e) => setOcrImages(e.target.checked)} />
+                  OCR các file ảnh để chữ trong PDF tìm kiếm và chọn được
+                  <select aria-label="Ngôn ngữ OCR" value={ocrLang} disabled={!ocrImages} onChange={(e) => setOcrLang(e.target.value)}>
+                    {OCR_LANGS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+                  </select>
+                </label>
+              )}
               <div className="seg-radio" role="radiogroup" aria-label="Mức nén">
                 {(Object.keys(COMPRESSION_LABELS) as CompressionLevel[]).map((k) => (
                   <label key={k} data-on={compression === k}>
@@ -202,6 +251,11 @@ export function CombineDialog({ initial, onClose, onOpenResult }: {
             )}
 
             <footer>
+              {onOpenInOrganizer && (
+                <button className="btn ghost left" disabled={phase === "running" || !items.length || problems.length > 0}
+                  title="Sắp xếp, xoay, xoá từng trang trước khi gộp"
+                  onClick={() => { onOpenInOrganizer(items.map((i) => i.path)); onClose(); }}>Mở trong Page Organizer</button>
+              )}
               {phase === "running"
                 ? <button className="btn secondary" onClick={() => void cancelCombine()}>Huỷ</button>
                 : <button className="btn secondary" onClick={onClose}>Đóng</button>}

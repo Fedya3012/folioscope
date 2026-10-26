@@ -27,6 +27,8 @@ pub enum PdfError {
     Render(String),
     #[error("không lưu được ghi chú: {0}")]
     Save(String),
+    #[error("không sửa được nội dung: {0}")]
+    Edit(String),
 }
 
 impl Serialize for PdfError {
@@ -102,6 +104,17 @@ fn open_with<'a>(pdfium: &'a Pdfium, path: &str, password: Option<&str>) -> Resu
     })
 }
 
+/// Bản sao không còn mật khẩu của một PDF (dùng khi gộp file). PDFium là bên quyết định mật khẩu đúng hay sai,
+/// và đọc được cả file mã hoá dạng lopdf chưa xử lý được.
+pub(crate) fn unlock_copy(path: &str, password: Option<&str>) -> Result<Vec<u8>, PdfError> {
+    let pdfium = bind()?;
+    let doc = open_with(pdfium, path, password)?;
+    // Chép trang sang tài liệu mới: bản sao không mang theo mã hoá (dấu trang gốc của file khoá sẽ không được giữ).
+    let mut copy = pdfium.create_new_pdf().map_err(|e| PdfError::Open(e.to_string()))?;
+    copy.pages_mut().append(&doc).map_err(|e| PdfError::Open(e.to_string()))?;
+    copy.save_to_bytes().map_err(|e| PdfError::Open(e.to_string()))
+}
+
 /// Mở file, dùng mật khẩu đã nhớ nếu có. Mọi chỗ cần mở PDF bằng PDFium nên gọi hàm này.
 pub(crate) fn load<'a>(pdfium: &'a Pdfium, path: &str) -> Result<PdfDocument<'a>, PdfError> {
     let saved = passwords().get(path).cloned();
@@ -130,11 +143,8 @@ pub fn open_document(path: String, password: Option<String>) -> Result<DocumentI
     Ok(DocumentInfo { page_count: doc.pages().len() as u16, page_sizes })
 }
 
-#[tauri::command]
-pub fn render_page(path: String, index: u16, width: u32) -> Result<RenderedPage, PdfError> {
-    let pdfium = bind()?;
-    let doc = load(pdfium, &path)?;
-    let page = doc.pages().get(index as i32).map_err(|_| PdfError::PageOutOfRange(index))?;
+/// Vẽ một trang đã mở thành ảnh PNG theo bề rộng (px).
+pub(crate) fn render_png(page: &PdfPage, width: u32) -> Result<RenderedPage, PdfError> {
     let bitmap = page
         .render_with_config(&PdfRenderConfig::new().set_target_width(width as i32))
         .map_err(|e| PdfError::Render(e.to_string()))?;
@@ -147,6 +157,14 @@ pub fn render_page(path: String, index: u16, width: u32) -> Result<RenderedPage,
         height: img.height(),
         png_base64: STANDARD.encode(buf.into_inner()),
     })
+}
+
+#[tauri::command]
+pub fn render_page(path: String, index: u16, width: u32) -> Result<RenderedPage, PdfError> {
+    let pdfium = bind()?;
+    let doc = load(pdfium, &path)?;
+    let page = doc.pages().get(index as i32).map_err(|_| PdfError::PageOutOfRange(index))?;
+    render_png(&page, width)
 }
 
 /// Ghi ghi chú vào một bản sao; từ chối ghi đè chính file đang mở.
@@ -167,7 +185,12 @@ pub fn save_annotations(path: String, out: String, items: Vec<crate::annotations
 }
 
 #[cfg(test)]
+/// PDF 1 trang mã hoá RC4, mật khẩu mở là "matkhau".
+pub(crate) const ENCRYPTED_PDF: &str = "JVBERi0xLjMKJeLjz9MKMSAwIG9iago8PAovUHJvZHVjZXIgPDVmMjUyY2ZkNmU+Cj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9UeXBlIC9QYWdlcwovQ291bnQgMQovS2lkcyBbIDQgMCBSIF0KPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDIgMCBSCj4+CmVuZG9iago0IDAgb2JqCjw8Ci9UeXBlIC9QYWdlCi9SZXNvdXJjZXMgPDwKPj4KL01lZGlhQm94IFsgMC4wIDAuMCAyMDAgMzAwIF0KL1BhcmVudCAyIDAgUgo+PgplbmRvYmoKNSAwIG9iago8PAovViAyCi9SIDMKL0xlbmd0aCAxMjgKL1AgNDI5NDk2NzI5MgovRmlsdGVyIC9TdGFuZGFyZAovTyA8YzQyYjU1NTk3MWE1YWMxYTE1OTRmMDM4NjZlMjY0ZjEyZDFlM2I2MTdlMzU3NzYyZTNiZTIwMzZlYjA5Yjc1MT4KL1UgPDJjY2ZiYjg0OGIzMjIzZGFlZmEyODk2NDY5MDEyOWUyMjhiZjRlNWU0ZTc1OGE0MTY0MDA0ZTU2ZmZmYTAxMDg+Cj4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA1OSAwMDAwMCBuIAowMDAwMDAwMTE4IDAwMDAwIG4gCjAwMDAwMDAxNjcgMDAwMDAgbiAKMDAwMDAwMDI2MSAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9TaXplIDYKL1Jvb3QgMyAwIFIKL0luZm8gMSAwIFIKL0lEIFsgPDYyMzE2MzY1NjYzMDMzNjYzNDY1MzczNTM3Mzc2MjY2MzMzOTM2MzE2NDY1NjQ2MTM5MzYzNDM0Mzk2NTYxMzA+IDw2MjMxNjM2NTY2MzAzMzY2MzQ2NTM3MzUzNzM3NjI2NjMzMzkzNjMxNjQ2NTY0NjEzOTM2MzQzNDM5NjU2MTMwPiBdCi9FbmNyeXB0IDUgMCBSCj4+CnN0YXJ0eHJlZgo0NzYKJSVFT0YK";
+
+#[cfg(test)]
 mod tests {
+    use super::ENCRYPTED_PDF;
     use super::*;
 
     /// Chạy thật khi đặt FOLIOSCOPE_TEST_PDF trỏ tới một file PDF; bỏ qua nếu không đặt.
@@ -181,8 +204,6 @@ mod tests {
         assert!(page.height > 0 && !page.png_base64.is_empty());
     }
 
-    /// PDF 1 trang mã hoá RC4, mật khẩu mở là "matkhau".
-    const ENCRYPTED_PDF: &str = "JVBERi0xLjMKJeLjz9MKMSAwIG9iago8PAovUHJvZHVjZXIgPDVmMjUyY2ZkNmU+Cj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9UeXBlIC9QYWdlcwovQ291bnQgMQovS2lkcyBbIDQgMCBSIF0KPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDIgMCBSCj4+CmVuZG9iago0IDAgb2JqCjw8Ci9UeXBlIC9QYWdlCi9SZXNvdXJjZXMgPDwKPj4KL01lZGlhQm94IFsgMC4wIDAuMCAyMDAgMzAwIF0KL1BhcmVudCAyIDAgUgo+PgplbmRvYmoKNSAwIG9iago8PAovViAyCi9SIDMKL0xlbmd0aCAxMjgKL1AgNDI5NDk2NzI5MgovRmlsdGVyIC9TdGFuZGFyZAovTyA8YzQyYjU1NTk3MWE1YWMxYTE1OTRmMDM4NjZlMjY0ZjEyZDFlM2I2MTdlMzU3NzYyZTNiZTIwMzZlYjA5Yjc1MT4KL1UgPDJjY2ZiYjg0OGIzMjIzZGFlZmEyODk2NDY5MDEyOWUyMjhiZjRlNWU0ZTc1OGE0MTY0MDA0ZTU2ZmZmYTAxMDg+Cj4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA1OSAwMDAwMCBuIAowMDAwMDAwMTE4IDAwMDAwIG4gCjAwMDAwMDAxNjcgMDAwMDAgbiAKMDAwMDAwMDI2MSAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9TaXplIDYKL1Jvb3QgMyAwIFIKL0luZm8gMSAwIFIKL0lEIFsgPDYyMzE2MzY1NjYzMDMzNjYzNDY1MzczNTM3Mzc2MjY2MzMzOTM2MzE2NDY1NjQ2MTM5MzYzNDM0Mzk2NTYxMzA+IDw2MjMxNjM2NTY2MzAzMzY2MzQ2NTM3MzUzNzM3NjI2NjMzMzkzNjMxNjQ2NTY0NjEzOTM2MzQzNDM5NjU2MTMwPiBdCi9FbmNyeXB0IDUgMCBSCj4+CnN0YXJ0eHJlZgo0NzYKJSVFT0YK";
 
     #[test]
     fn opens_password_protected_file() {

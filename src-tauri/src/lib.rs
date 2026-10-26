@@ -1,12 +1,16 @@
 mod annotations;
 mod combine;
 mod commands;
+mod content;
 mod db;
 mod fsutil;
 mod launch;
+mod ocr_install;
+mod office_install;
 mod organizer;
 mod pdf;
 mod shell_menu;
+mod transform;
 mod viewer;
 
 use std::sync::Arc;
@@ -27,11 +31,16 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_dialog::init())
         .manage(Arc::new(combine::CancelFlag::default()))
+        .manage(commands::OfficeCancel::default())
+        .manage(commands::OcrCancel::default())
+        .manage(commands::ConvertCancel::default())
         .manage(Arc::new(launch::Launch::default()))
         .setup(|app| {
             use tauri::Manager;
             let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
             app.manage(db::Db::open(&data_dir.join("folioscope.sqlite"))?);
+            office_install::set_home(data_dir.join("libreoffice"));
+            ocr_install::set_home(data_dir.join("tesseract"));
             let args: Vec<String> = std::env::args().collect();
             launch::handle_args(app.handle(), &args);
             Ok(())
@@ -40,11 +49,26 @@ pub fn run() {
             pdf::open_document,
             pdf::render_page,
             pdf::save_annotations,
+            content::list_page_objects,
+            content::render_page_edited,
+            content::save_content_edits,
             viewer::get_outline,
             viewer::get_text_runs,
             viewer::search_text,
             commands::probe_files,
             commands::office_status,
+            commands::office_install_supported,
+            commands::office_install,
+            commands::office_install_cancel,
+            commands::ocr_status,
+            commands::ocr_install_supported,
+            commands::ocr_install,
+            commands::ocr_install_cancel,
+            commands::convert_run,
+            commands::convert_cancel,
+            commands::file_size,
+            commands::prepare_pdf,
+            commands::save_clipboard_image,
             commands::combine_files,
             commands::cancel_combine,
             launch::take_launch_files,
