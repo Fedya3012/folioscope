@@ -3,6 +3,7 @@ import { LEFT, RIGHT, ZOOM_MAX, ZOOM_MIN, clamp, resolvePanelWidth, stepZoom } f
 import { getOutline, openDocument, probeFiles, searchText, type DocumentInfo, type OutlineItem, type SearchHit } from "./lib/api";
 import { db } from "./lib/db";
 import { useAnnot } from "./annotations/store";
+import { useEdit } from "./edit/store";
 import { useOrganizer } from "./organizerStore";
 import { addTab, parsePositions, savePosition, moveTab, type ReadPos } from "./lib/tabs";
 import { addRecent, parseRecent, removeRecent, togglePin, trimRecent, type RecentFile } from "./lib/recent";
@@ -50,6 +51,7 @@ type Session = {
   currentPage: number; zoom: number; fit: Fit; viewMode: ViewMode;
   annot: Pick<ReturnType<typeof useAnnot.getState>, "items" | "past" | "future" | "dirty">;
   org: Partial<ReturnType<typeof useOrganizer.getState>>;
+  edit: Pick<ReturnType<typeof useEdit.getState>, "edits" | "byPage" | "past" | "future">;
 };
 const sessions = new Map<string, Session>();
 const ORG_KEYS = ["baseInfo", "basePath", "items", "selected", "anchor", "history"] as const;
@@ -123,7 +125,7 @@ function rememberPosition() {
   db.setJson(POS_KEY, savePosition(readPositions(), path, pos));
 }
 
-const liveDirty = () => useAnnot.getState().dirty || useOrganizer.getState().history.past.length > 0;
+const liveDirty = () => useAnnot.getState().dirty || useOrganizer.getState().history.past.length > 0 || Object.keys(useEdit.getState().edits).length > 0;
 /** Tab có thay đổi chưa lưu (tab đang chọn lấy trực tiếp từ store, tab nền lấy lúc rời đi). */
 export const isDirty = (path: string): boolean => (path === useStore.getState().path ? liveDirty() : !!useStore.getState().tabDirty[path]);
 
@@ -132,12 +134,13 @@ function capture() {
   const s = useStore.getState();
   if (!s.path || !s.info) return;
   rememberPosition();
-  const a = useAnnot.getState(), o = useOrganizer.getState();
+  const a = useAnnot.getState(), o = useOrganizer.getState(), ed = useEdit.getState();
   const org: Session["org"] = {};
   for (const k of ORG_KEYS) (org as Record<string, unknown>)[k] = o[k];
   sessions.set(s.path, {
     info: s.info, outline: s.outline, mode: s.mode, currentPage: s.currentPage, zoom: s.zoom, fit: s.fit, viewMode: s.viewMode,
     annot: { items: a.items, past: a.past, future: a.future, dirty: a.dirty }, org,
+    edit: { edits: ed.edits, byPage: ed.byPage, past: ed.past, future: ed.future },
   });
   useStore.setState({ tabDirty: { ...s.tabDirty, [s.path]: liveDirty() } });
 }
@@ -148,6 +151,8 @@ function restore(path: string, snap: Session, view: "home" | "doc") {
   useAnnot.getState().reset();
   useAnnot.setState(snap.annot);
   useOrganizer.setState(snap.org);
+  useEdit.getState().reset();
+  useEdit.setState(snap.edit);
   const s = useStore.getState();
   useStore.setState({
     path, info: snap.info, view, error: null, mode: snap.mode, currentPage: snap.currentPage, zoom: snap.zoom, fit: snap.fit,
@@ -172,6 +177,7 @@ function closeNow(paths: string[]) {
   searchGen++;
   useAnnot.getState().reset();
   useOrganizer.getState().reset();
+  useEdit.getState().reset();
   useStore.setState({ path: null, info: null, outline: [], search: noSearch, view: "home", mode: "view", currentPage: 0 });
 }
 
@@ -231,7 +237,7 @@ export const useStore = create<State>((set, get) => ({
       // Mở lại file đã đọc trước đây thì quay về trang, mức zoom và kiểu xem lần cuối.
       const pos = switching ? readPositions()[path] : undefined;
       const page = pos ? Math.min(pos.page, info.page_count - 1) : 0;
-      if (switching) { useAnnot.getState().reset(); }
+      if (switching) { useAnnot.getState().reset(); useEdit.getState().reset(); }
       set({
         path, info, view: "doc", error: null, passwordPrompt: null, currentPage: page,
         fit: pos ? pos.fit : z.fit, zoom: pos ? pos.zoom : z.zoom ?? get().zoom, viewMode: pos ? pos.viewMode : get().viewMode,

@@ -1,6 +1,7 @@
 mod annotations;
 mod combine;
 mod commands;
+mod content;
 mod db;
 mod fsutil;
 mod launch;
@@ -48,6 +49,9 @@ pub fn run() {
             pdf::open_document,
             pdf::render_page,
             pdf::save_annotations,
+            content::list_page_objects,
+            content::render_page_edited,
+            content::save_content_edits,
             viewer::get_outline,
             viewer::get_text_runs,
             viewer::search_text,

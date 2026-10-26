@@ -2,6 +2,7 @@ import { SEARCH_INPUT_ID } from "./components/SearchPanel";
 import { registerCommands, type Command } from "./lib/shortcuts";
 import { cycleTab } from "./lib/tabs";
 import { redo, registerUndoScope, undo } from "./lib/undo";
+import { useEdit } from "./edit/store";
 import { usePalette } from "./lib/paletteStore";
 import { useAnnot } from "./annotations/store";
 import { useOrganizer } from "./organizerStore";
@@ -60,7 +61,7 @@ export function registerAppCommands(openFile: () => void): () => void {
   ];
 
   const off = registerCommands(cmds);
-  // Hai tính năng đã có lịch sử riêng tham gia hoàn tác toàn cục theo chế độ đang mở.
+  // Ba tính năng đã có lịch sử riêng tham gia hoàn tác toàn cục theo chế độ đang mở.
   const offOrg = registerUndoScope({
     id: "organizer", active: () => st().mode === "pages",
     canUndo: () => useOrganizer.getState().history.past.length > 0, canRedo: () => useOrganizer.getState().history.future.length > 0,
@@ -71,5 +72,10 @@ export function registerAppCommands(openFile: () => void): () => void {
     canUndo: () => useAnnot.getState().past.length > 0, canRedo: () => useAnnot.getState().future.length > 0,
     undo: () => useAnnot.getState().undo(), redo: () => useAnnot.getState().redo(),
   });
-  return () => { off(); offOrg(); offAnnot(); };
+  const offEdit = registerUndoScope({
+    id: "content-edit", active: () => st().mode === "edit",
+    canUndo: () => useEdit.getState().past.length > 0, canRedo: () => useEdit.getState().future.length > 0,
+    undo: () => useEdit.getState().undo(), redo: () => useEdit.getState().redo(),
+  });
+  return () => { off(); offOrg(); offAnnot(); offEdit(); };
 }

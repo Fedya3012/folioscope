@@ -27,6 +27,10 @@ import { OfficeInstallDialog } from "./components/OfficeInstallDialog";
 import { ViewControls } from "./components/ViewControls";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
+import { EditBar } from "./edit/EditBar";
+import { EditLayer } from "./edit/EditLayer";
+import { EditPanel } from "./edit/EditPanel";
+import { useEdit } from "./edit/store";
 import { AnnotationPanel } from "./annotations/AnnotationPanel";
 import { pickPdf, takeLaunchFiles, type ConvertTarget } from "./lib/api";
 import { useOrganizer } from "./organizerStore";
@@ -40,6 +44,8 @@ const MODES: [Mode, string][] = [
 
 export function App() {
   const s = useStore();
+  const thumbRev = useEdit((e) => e.rev);
+  const editCount = useEdit((e) => Object.keys(e.edits).length);
   const pagesDirty = useOrganizer((o) => o.history.past.length > 0);
   const organizing = s.mode === "pages";
   const [pageText, setPageText] = useState("");
@@ -151,7 +157,7 @@ export function App() {
         <button className="btn ghost" aria-pressed={s.rightOpen} onClick={() => s.togglePanel("right")}>Thuộc tính</button>
       </div>
 
-      <div className="annot-slot"><AnnotateBar /></div>
+      <div className="annot-slot"><AnnotateBar /><EditBar /></div>
 
       <div className="workspace">
         <nav className="rail" aria-label="Điều hướng">
@@ -163,7 +169,7 @@ export function App() {
           <>
             <aside className="panel left" style={{ width: s.leftWidth }} aria-label={TAB_TITLES[s.leftTab]}>
               <h2>{TAB_TITLES[s.leftTab]}</h2>
-              {s.leftTab === "thumbs" && <Thumbnails />}
+              {s.leftTab === "thumbs" && <Thumbnails key={thumbRev} />}
               {s.leftTab === "outline" && <Outline />}
               {s.leftTab === "search" && <SearchPanel />}
             </aside>
@@ -172,7 +178,7 @@ export function App() {
         )}
 
         <main className="canvas">
-          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /><ViewControls /></> : (
+          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /><EditLayer /><ViewControls /></> : (
             <div className="empty">
               <h1>Mở file PDF đầu tiên của bạn</h1>
               <p>{s.error ?? "Chọn một file để xem, hoặc kéo file PDF thả vào cửa sổ."}</p>
@@ -186,7 +192,7 @@ export function App() {
             <Resizer side="right" onDrag={(w) => s.dragPanel("right", w)} />
             <aside className="panel right" style={{ width: s.rightWidth }} aria-label="Thuộc tính">
               <h2>Thuộc tính</h2>
-              {s.mode === "annotate" ? <AnnotationPanel /> : <div className="body">Chọn một đối tượng để xem thuộc tính.</div>}
+              {s.mode === "edit" ? <EditPanel /> : s.mode === "annotate" ? <AnnotationPanel /> : <div className="body">Chọn một đối tượng để xem thuộc tính.</div>}
             </aside>
           </>
         )}
@@ -209,6 +215,7 @@ export function App() {
         <span>/ {s.info ? s.info.page_count : "—"}</span>
         <button className="btn ghost" aria-label="Trang sau" disabled={!s.info || s.currentPage >= s.info.page_count - 1} onClick={() => s.goToPage(s.currentPage + 1)}>›</button>
         {pagesDirty && <span>Có thay đổi trang chưa lưu</span>}
+        {editCount > 0 && <span>Có {editCount} sửa đổi nội dung chưa lưu</span>}
         <span className="spacer" />
         <button className="btn ghost" title="Đổi màu nền trang" onClick={() => s.setPageTheme(nextPageTheme(s.pageTheme))}>{PAGE_THEME_LABEL[s.pageTheme]}</button>
         <button className="btn ghost" onClick={() => s.setFit("width")} aria-pressed={s.fit === "width"}>Vừa bề rộng</button>

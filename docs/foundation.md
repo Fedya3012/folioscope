@@ -31,6 +31,9 @@
 - Vị trí đọc lần cuối của từng file (trang, zoom, kiểu xem) lưu ở khoá `folioscope.positions`, tối đa 200 file.
 - Phím tắt: `Ctrl+W` đóng tab, `Ctrl+Tab` / `Ctrl+Shift+Tab` chuyển tab.
 
+## Sửa nội dung PDF (Gói H)
+Xem `docs/content-editing.md`. Điểm cần nhớ cho các gói sau: sửa đổi nội dung nằm ở `src/edit/store.ts` (`useEdit`) và đã được `capture()`/`restore()`/`isDirty()` trong `src/store.ts` xử lý; `Viewer.tsx` vẽ trang bằng `render_page_edited` khi trang có sửa đổi chưa lưu.
+
 ## Ghi chú (Gói F)
 - `src/annotations/snap.ts`: kéo chuột trên chữ → các hình chữ nhật bám từng dòng (dùng `getTextRuns` của Viewer, không sửa Viewer). Trang ảnh quét không có lớp chữ thì dùng khung tự do.
 - `src/annotations/measure.ts`: đo khoảng cách, chu vi, diện tích theo kích thước trang (điểm PDF) và tỉ lệ (`folioscope.measureScale`).

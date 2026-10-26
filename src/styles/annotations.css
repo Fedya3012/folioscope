@@ -27,6 +27,24 @@
 .annot-text.static { border: 0; white-space: pre-wrap; overflow: hidden; pointer-events: none; }
 .annot-slot { min-height: 0; }
 
+/* Chế độ Chỉnh sửa nội dung (Gói H) */
+.edit-root { position: absolute; inset: 0; z-index: 5; cursor: default; touch-action: none; }
+.edit-box { position: absolute; box-sizing: border-box; pointer-events: none; border: 1.5px dashed var(--primary); background: rgba(61, 99, 238, .06); }
+.edit-box.kind-image { border-color: #1FA971; background: rgba(31, 169, 113, .07); }
+.edit-box.kind-shape { border-color: #E8860C; background: rgba(232, 134, 12, .07); }
+.edit-box.selected { border-style: solid; border-width: 2px; }
+.edit-box.edited:not(.selected) { border-style: solid; }
+.edit-handle { position: absolute; right: -6px; bottom: -6px; width: 11px; height: 11px; border-radius: 2px; background: var(--surface-1); border: 1.5px solid var(--primary); cursor: nwse-resize; pointer-events: auto; }
+.edit-text { position: absolute; box-sizing: border-box; padding: 0 2px; margin: 0; border: 2px solid var(--primary); border-radius: 2px; background: #fff; color: #111; font-family: Arial, "Helvetica Neue", sans-serif; line-height: 1; outline: none; z-index: 6; }
+.edit-bar .edit-hint { color: var(--text-secondary); font-size: var(--fs-small); white-space: nowrap; }
+.edit-panel h3 { margin: 0 0 8px; font-size: 13px; color: var(--text-primary); }
+.edit-panel label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: var(--fs-small); color: var(--text-secondary); }
+.edit-panel label.row { flex-direction: row; align-items: center; gap: 8px; }
+.edit-panel textarea, .edit-panel input[type="number"] { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); font: inherit; }
+.edit-panel input[type="color"] { width: 44px; height: 28px; padding: 0; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: transparent; margin-bottom: 10px; }
+.edit-panel .muted { color: var(--text-tertiary, var(--text-secondary)); font-size: var(--fs-small); margin: 8px 0; }
+.edit-actions { display: flex; gap: 8px; margin: 12px 0; }
+
 .annot-bar select { height: 28px; border: 1px solid var(--border-default); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); padding: 0 6px; }
 .annot-bar .measure-opts { display: inline-flex; align-items: center; gap: 8px; }
 .annot-bar .measure-opts em { font-style: normal; color: var(--text-secondary); font-size: var(--fs-small); white-space: nowrap; }
