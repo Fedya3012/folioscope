@@ -84,6 +84,71 @@ pub fn office_install_cancel(cancel: State<'_, OfficeCancel>) {
     cancel.0.cancel();
 }
 
+/// Cờ huỷ riêng cho việc tải Tesseract.
+#[derive(Default)]
+pub struct OcrCancel(Arc<CancelFlag>);
+
+/// Cờ huỷ riêng cho màn hình Chuyển đổi / OCR.
+#[derive(Default)]
+pub struct ConvertCancel(Arc<CancelFlag>);
+
+/// Đường dẫn Tesseract nếu máy có; giao diện dùng để mời cài trước khi chạy OCR.
+#[tauri::command]
+pub fn ocr_status() -> Option<PathBuf> {
+    crate::ocr_install::find()
+}
+
+#[tauri::command]
+pub fn ocr_install_supported() -> bool {
+    crate::ocr_install::supported()
+}
+
+/// Tải và cài Tesseract; tiến trình gửi qua sự kiện `ocr-install-progress`.
+#[tauri::command]
+pub async fn ocr_install(app: AppHandle, cancel: State<'_, OcrCancel>) -> Result<PathBuf, String> {
+    let cancel = Arc::clone(&cancel.0);
+    cancel.reset();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::ocr_install::install(
+            &mut |p| {
+                let _ = app.emit("ocr-install-progress", p);
+            },
+            &cancel,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn ocr_install_cancel(cancel: State<'_, OcrCancel>) {
+    cancel.0.cancel();
+}
+
+/// Chạy một đợt chuyển đổi / OCR; tiến trình gửi qua sự kiện `convert-progress`.
+/// Lỗi `OFFICE_MISSING` / `OCR_MISSING` = cần cài LibreOffice / Tesseract trước.
+#[tauri::command]
+pub async fn convert_run(
+    app: AppHandle,
+    cancel: State<'_, ConvertCancel>,
+    request: crate::transform::Request,
+) -> Result<Vec<crate::transform::ItemResult>, String> {
+    let cancel = Arc::clone(&cancel.0);
+    cancel.reset();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::transform::run(&request, &cancel, &mut |p| {
+            let _ = app.emit("convert-progress", p);
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn convert_cancel(cancel: State<'_, ConvertCancel>) {
+    cancel.0.cancel();
+}
+
 /// Dung lượng file (byte), để ước lượng khi tách theo dung lượng.
 #[tauri::command]
 pub fn file_size(path: PathBuf) -> Result<u64, String> {

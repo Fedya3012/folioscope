@@ -70,7 +70,15 @@ pub struct CombineRequest {
     #[serde(default)]
     pub normalize_a4: bool,
     pub compression: Compression,
+    /// Nhận dạng chữ (OCR) cho file ảnh để PDF kết quả tìm kiếm được.
+    #[serde(default)]
+    pub ocr_images: bool,
+    /// Ngôn ngữ OCR, ví dụ "vie+eng".
+    #[serde(default = "default_ocr_lang")]
+    pub ocr_lang: String,
 }
+
+fn default_ocr_lang() -> String { "vie+eng".into() }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Progress {
@@ -119,6 +127,11 @@ pub fn combine(
     let tmp = tempdir()?;
     let mut docs = Vec::with_capacity(n);
     let mut converted = 0;
+    let ocr = if req.ocr_images && req.files.iter().any(|f| convert::classify(&f.path) == convert::Kind::Image) {
+        Some(crate::transform::ocr::Ocr::prepare(&req.ocr_lang, cancel).map_err(|e| CombineError::File { file: String::new(), reason: e })?)
+    } else {
+        None
+    };
     for (i, f) in req.files.iter().enumerate() {
         cancel.check()?;
         let name = f.path.file_name().map(|s| s.to_string_lossy().into_owned());
@@ -126,6 +139,10 @@ pub fn combine(
         let pdf_path = match convert::classify(&f.path) {
             convert::Kind::Pdf => f.path.clone(),
             convert::Kind::Unsupported => return Err(file_err(&f.path, "định dạng này chưa được hỗ trợ")),
+            convert::Kind::Image if ocr.is_some() => {
+                converted += 1;
+                ocr.as_ref().expect("đã kiểm tra").image_to_pdf(&f.path, tmp.path(), cancel)?
+            }
             _ => { converted += 1; convert::to_pdf(&f.path, tmp.path(), office, cancel)? }
         };
         docs.push(merge::load(&pdf_path, f.password.as_deref()).map_err(|e| file_err(&f.path, e))?);
@@ -156,7 +173,7 @@ fn same_file(a: &std::path::Path, b: &std::path::Path) -> bool {
 }
 
 /// Ghi ra file tạm cạnh đích rồi đổi tên, để lỗi giữa chừng không làm hỏng file đích cũ.
-fn write_atomic(doc: &mut lopdf::Document, out: &std::path::Path, modern: bool) -> Result<u64, CombineError> {
+pub(crate) fn write_atomic(doc: &mut lopdf::Document, out: &std::path::Path, modern: bool) -> Result<u64, CombineError> {
     let tmp = out.with_extension("pdf.part");
     let res = (|| -> std::io::Result<()> {
         let mut f = std::io::BufWriter::new(std::fs::File::create(&tmp)?);

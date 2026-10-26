@@ -204,3 +204,25 @@ button { font: inherit; color: inherit; }
 .ctx-menu button { height: 30px; padding: 0 10px; border: 0; border-radius: var(--r-sm); background: transparent; text-align: left; cursor: pointer; }
 .ctx-menu button:hover:not(:disabled) { background: var(--state-hover); }
 .ctx-menu button:disabled { color: var(--text-disabled, var(--text-tertiary)); cursor: default; }
+
+/* Màn hình Chuyển đổi và OCR */
+.modal.convert { width: min(900px, calc(100vw - 32px)); }
+.convert-cols { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; }
+.convert-targets { display: flex; flex-direction: column; gap: 12px; }
+.convert-targets h3 { margin: 0 0 4px; font-size: var(--fs-small); color: var(--text-secondary); font-weight: 600; }
+.convert-target { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-md); cursor: pointer; }
+.convert-target[data-on="true"] { border-color: var(--primary); background: var(--primary-soft); }
+.convert-target span { display: flex; flex-direction: column; min-width: 0; }
+.convert-target small { color: var(--text-tertiary); font-size: var(--fs-small); }
+.convert-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.convert-files, .convert-results { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-default); border-radius: var(--r-md); max-height: 220px; overflow: auto; }
+.convert-files li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--border-subtle); background: var(--surface-1); }
+.convert-files li:last-child { border-bottom: 0; }
+.convert-files .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.convert-files .meta strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.convert-results li { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+.convert-results li:last-child { border-bottom: 0; }
+.convert-results .path { color: var(--text-secondary); font-size: var(--fs-small); overflow-wrap: anywhere; }
+.convert-results .path .link { margin-left: 8px; }
+.modal select { height: 32px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); font: inherit; margin-left: 8px; }
+@media (max-width: 720px) { .convert-cols { grid-template-columns: 1fr; } }

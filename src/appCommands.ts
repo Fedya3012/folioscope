@@ -21,6 +21,8 @@ export function registerAppCommands(openFile: () => void): () => void {
 
   const cmds: Command[] = [
     { id: "file.open", label: "Mở file…", group: "Tệp", keys: ["Mod+O"], typing: "allow", run: openFile },
+    { id: "convert.open", label: "Chuyển đổi file…", group: "Tệp", keys: [], typing: "allow", run: () => window.dispatchEvent(new CustomEvent("folioscope:convert", { detail: "to_pdf" })) },
+    { id: "ocr.open", label: "OCR: nhận dạng chữ…", group: "Tệp", keys: [], typing: "allow", run: () => window.dispatchEvent(new CustomEvent("folioscope:convert", { detail: "ocr" })) },
     { id: "tab.close", label: "Đóng tab", group: "Tệp", keys: ["Mod+W"], typing: "allow", when: () => !!st().path, run: () => st().closeTab(st().path!) },
     { id: "tab.next", label: "Tab sau", group: "Tệp", keys: ["Mod+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(1) },
     { id: "tab.prev", label: "Tab trước", group: "Tệp", keys: ["Mod+Shift+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(-1) },
