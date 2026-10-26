@@ -178,3 +178,19 @@ button { font: inherit; color: inherit; }
 .tab[aria-selected="true"] { background: var(--surface-1); border-color: var(--border-default); color: var(--text-primary); position: relative; top: 1px; }
 .tab.home-tab { padding: 5px 10px; }
 .titlebar .btn { align-self: center; }
+
+/* Nhiều tab tài liệu */
+.tabs { display: flex; align-items: flex-end; gap: 2px; align-self: stretch; min-width: 0; flex: 0 1 auto; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.doc-tab { gap: 4px; padding-right: 4px; max-width: 220px; min-width: 96px; flex: 0 1 200px; touch-action: none; user-select: none; transition: transform var(--dur-fast) var(--ease); }
+.doc-tab .tab-name { overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: left; }
+.doc-tab.shift-left { transform: translateX(-12px); } .doc-tab.shift-right { transform: translateX(12px); }
+.doc-tab.dragging { transition: none; z-index: 2; opacity: .85; box-shadow: var(--e2); }
+.tab-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, var(--primary)); }
+.tab-close { flex: none; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--text-tertiary); cursor: pointer; }
+.tab-close:hover { background: var(--state-hover); color: var(--text-primary); }
+.titlebar .tab-add { align-self: center; width: 28px; height: 28px; flex: none; }
+.ctx-menu { position: fixed; z-index: 200; min-width: 180px; padding: 4px; display: flex; flex-direction: column; background: var(--surface-3); border: 1px solid var(--border-default); border-radius: var(--r-md); box-shadow: var(--e3); }
+.ctx-menu button { height: 30px; padding: 0 10px; border: 0; border-radius: var(--r-sm); background: transparent; text-align: left; cursor: pointer; }
+.ctx-menu button:hover:not(:disabled) { background: var(--state-hover); }
+.ctx-menu button:disabled { color: var(--text-disabled, var(--text-tertiary)); cursor: default; }
