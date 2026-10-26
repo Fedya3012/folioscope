@@ -36,6 +36,8 @@ fn req(files: Vec<(PathBuf, &str)>, out: PathBuf, bookmarks: bool, compression: 
         keep_bookmarks: false,
         normalize_a4: false,
         compression,
+        ocr_images: false,
+        ocr_lang: "vie+eng".into(),
     }
 }
 
@@ -356,4 +358,28 @@ fn legacy_rc4_pdf_unlocks_with_password() {
     assert!(matches!(merge::load(&locked, None), Err(merge::LoadError::Password { wrong: false })));
     assert!(matches!(merge::load(&locked, Some("sai")), Err(merge::LoadError::Password { wrong: true })));
     assert_eq!(merge::load(&locked, Some("matkhau")).unwrap().get_pages().len(), 1);
+}
+
+#[test]
+fn ocr_images_makes_text_searchable_when_tesseract_is_installed() {
+    if crate::ocr_install::find().is_none() { return; }
+    use pdfium_render::prelude::*;
+    let dir = std::env::temp_dir().join(format!("folioscope-combine-ocr-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let src = dir.join("goc.pdf");
+    make_pdf(&src, 1, (595, 842), "Hello Folioscope OCR");
+    let pdfium = crate::pdf::bind().unwrap();
+    let doc = pdfium.load_pdf_from_file(&src, None).unwrap();
+    let img = doc.pages().get(0).unwrap().render_with_config(&PdfRenderConfig::new().set_target_width(1700)).unwrap().as_image().unwrap();
+    let png = dir.join("scan.png");
+    img.save_with_format(&png, image::ImageFormat::Png).unwrap();
+    let out = dir.join("out.pdf");
+    let mut r = req(vec![(png, "")], out.clone(), false, Compression::None);
+    r.ocr_images = true;
+    r.ocr_lang = "eng".into();
+    let res = run(&r).expect("gộp được");
+    assert_eq!(res.converted, 1);
+    let text = pdfium.load_pdf_from_file(&out, None).unwrap().pages().iter().map(|p| p.text().unwrap().all()).collect::<String>();
+    assert!(text.contains("Folioscope"), "{text}");
+    let _ = std::fs::remove_dir_all(&dir);
 }

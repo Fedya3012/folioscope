@@ -8,6 +8,8 @@ import { SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
 import { Viewer } from "./components/Viewer";
 import { CombineDialog } from "./components/CombineDialog";
+import { ConvertDialog } from "./components/ConvertDialog";
+import { OcrInstallDialog } from "./components/OcrInstallDialog";
 import { Home } from "./components/Home";
 import { Icon } from "./components/Icon";
 import { ConfirmClose, TabBar } from "./components/TabBar";
@@ -26,7 +28,7 @@ import { ViewControls } from "./components/ViewControls";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
 import { AnnotationPanel } from "./annotations/AnnotationPanel";
-import { pickPdf, takeLaunchFiles } from "./lib/api";
+import { pickPdf, takeLaunchFiles, type ConvertTarget } from "./lib/api";
 import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
 
@@ -67,6 +69,14 @@ export function App() {
   // null = đóng; mảng = mở hộp thoại Gộp file với các file ban đầu này.
   const [combine, setCombine] = useState<string[] | null>(null);
   const closeCombine = useCallback(() => setCombine(null), []);
+  // Màn hình Chuyển đổi và OCR: null = đóng.
+  const [convert, setConvert] = useState<{ files: string[]; target: ConvertTarget } | null>(null);
+  const closeConvert = useCallback(() => setConvert(null), []);
+  useEffect(() => {
+    const open = (e: Event) => setConvert({ files: [], target: (e as CustomEvent<ConvertTarget>).detail ?? "to_pdf" });
+    window.addEventListener("folioscope:convert", open);
+    return () => window.removeEventListener("folioscope:convert", open);
+  }, []);
 
   // File đến từ menu chuột phải của Windows (lúc khởi động hoặc khi app đã mở sẵn).
   useEffect(() => {
@@ -82,7 +92,7 @@ export function App() {
 
   // Kéo thả file vào cửa sổ. Khi hộp thoại Gộp file đang mở thì để nó tự xử lý.
   const combineOpen = useRef(false);
-  combineOpen.current = combine !== null;
+  combineOpen.current = combine !== null || convert !== null;
   const [dragOver, setDragOver] = useState(false);
   useEffect(() => {
     const sub = getCurrentWebview().onDragDropEvent((e) => {
@@ -116,12 +126,13 @@ export function App() {
       </header>
 
       {onHome ? (
-        <Home onOpenDialog={open} onOpenPath={(p) => void s.load(p)} onCombine={setCombine} />
+        <Home onOpenDialog={open} onOpenPath={(p) => void s.load(p)} onCombine={setCombine} onConvert={(target) => setConvert({ files: [], target })} />
       ) : (<>
 
       <div className="toolbar" role="toolbar" aria-label="Công cụ chính">
         <button className="btn secondary" onClick={open}>Mở file…</button>
         <button className="btn secondary" onClick={() => setCombine([])}>Gộp file…</button>
+        <button className="btn secondary" onClick={() => setConvert({ files: [], target: "to_pdf" })}>Chuyển đổi / OCR…</button>
         <div className="segmented" role="group" aria-label="Công cụ con trỏ">
           <button aria-pressed={s.tool === "select"} onClick={() => s.setTool("select")} title="Chọn chữ">Chọn chữ</button>
           <button aria-pressed={s.tool === "hand"} onClick={() => s.setTool("hand")} title="Kéo trang">Bàn tay</button>
@@ -209,11 +220,13 @@ export function App() {
       </>)}
       <PasswordDialog />
       <OfficeInstallDialog />
+      <OcrInstallDialog />
       <ConfirmClose />
       <Toaster />
       {s.settingsOpen && <Settings />}
       {paletteOpen && <CommandPalette />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
+      {convert && <ConvertDialog initial={convert.files} initialTarget={convert.target} onClose={closeConvert} onOpenResult={(p) => void s.load(p)} />}
       {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)}
         onOpenInOrganizer={(paths) => void useOrganizer.getState().openFiles(paths)} />}
     </div>

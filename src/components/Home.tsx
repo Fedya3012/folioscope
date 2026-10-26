@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { greeting } from "../lib/settings";
+import type { ConvertTarget } from "../lib/api";
 import { folderOf, formatBytes, relativeTime, sortRecent, type RecentFile, type RecentSort } from "../lib/recent";
 import { db } from "../lib/db";
 import { requestThumb } from "../lib/thumbs";
@@ -13,14 +14,14 @@ const SIDE: [Section, string, IconName][] = [
   ["home", "Trang chủ", "home"], ["recent", "Gần đây", "clock"], ["pinned", "Đã ghim", "star"], ["templates", "Templates", "template"],
 ];
 
-type Action = { id: string; label: string; desc: string; icon: IconName; tone: string; run?: "open" | "create" | "combine" };
+type Action = { id: string; label: string; desc: string; icon: IconName; tone: string; run?: "open" | "create" | "combine" | "convert" | "ocr" };
 const ACTIONS: Action[] = [
   { id: "open", label: "Mở file", desc: "Xem và chỉnh sửa PDF", icon: "open", tone: "cobalt", run: "open" },
   { id: "create", label: "Tạo PDF", desc: "Từ ảnh, Word, Excel…", icon: "plus", tone: "success", run: "create" },
-  { id: "convert", label: "Chuyển đổi", desc: "PDF ↔ Word, Excel, ảnh", icon: "convert", tone: "accent" },
+  { id: "convert", label: "Chuyển đổi", desc: "PDF ↔ Word, Excel, ảnh", icon: "convert", tone: "accent", run: "convert" },
   { id: "combine", label: "Gộp file", desc: "Ghép nhiều file thành một", icon: "combine", tone: "danger", run: "combine" },
   { id: "compress", label: "Nén file", desc: "Giảm dung lượng PDF", icon: "compress", tone: "violet" },
-  { id: "ocr", label: "OCR", desc: "Nhận dạng chữ trong ảnh", icon: "ocr", tone: "info" },
+  { id: "ocr", label: "OCR", desc: "Nhận dạng chữ trong ảnh", icon: "ocr", tone: "info", run: "ocr" },
 ];
 
 const CLOUDS = ["Google Drive", "Dropbox", "OneDrive"];
@@ -90,9 +91,10 @@ function RecentList({ items, now, onOpen }: { items: RecentFile[]; now: number; 
   );
 }
 
-export type HomeProps = { onOpenDialog: () => void; onOpenPath: (p: string) => void; onCombine: (files: string[]) => void };
+export type HomeProps = { onOpenDialog: () => void; onOpenPath: (p: string) => void; onCombine: (files: string[]) => void;
+  onConvert?: (target: ConvertTarget) => void };
 
-export function Home({ onOpenDialog, onOpenPath, onCombine }: HomeProps) {
+export function Home({ onOpenDialog, onOpenPath, onCombine, onConvert }: HomeProps) {
   const { recent, settings, error, info, setView, setSettingsOpen, clearRecent } = useStore();
   const [section, setSection] = useState<Section>("home");
   const [layout, setLayout] = useState<Layout>(() => {
@@ -112,6 +114,8 @@ export function Home({ onOpenDialog, onOpenPath, onCombine }: HomeProps) {
   const run = (a: Action) => {
     if (a.run === "open") onOpenDialog();
     else if (a.run === "create" || a.run === "combine") onCombine([]);
+    else if (a.run === "convert") onConvert?.("to_pdf");
+    else if (a.run === "ocr") onConvert?.("ocr");
   };
 
   const list = (items: RecentFile[]) => layout === "grid"

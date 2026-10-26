@@ -7,6 +7,8 @@ import {
   shellMenuUninstall, type CombineProgress, type CombineResult, type CompressionLevel, type MenuStatus,
 } from "../lib/api";
 import { ensureOffice } from "../lib/office";
+import { ensureOcr } from "../lib/ocr";
+import { OCR_LANGS } from "../lib/convert";
 import {
   appendUnique, applyProbe, blocked, COMPRESSION_LABELS, dirOf, formatBytes, moveItem, needsOffice, progressLabel, sanitizeFileName,
   suggestOutput, totalPages, type Item,
@@ -26,6 +28,8 @@ export function CombineDialog({ initial, onClose, onOpenResult, onOpenInOrganize
   const [bookmarks, setBookmarks] = useState(true);
   const [keepBookmarks, setKeepBookmarks] = useState(false);
   const [normalizeA4, setNormalizeA4] = useState(false);
+  const [ocrImages, setOcrImages] = useState(false);
+  const [ocrLang, setOcrLang] = useState("vie+eng");
   const [pwDraft, setPwDraft] = useState<Record<number, string>>({});
   const [compression, setCompression] = useState<CompressionLevel>("balanced");
   const [dir, setDir] = useState("");
@@ -104,11 +108,14 @@ export function CombineDialog({ initial, onClose, onOpenResult, onOpenInOrganize
       if (!(await ensureOffice())) { setError("Chưa có bộ chuyển đổi Word, Excel, PowerPoint. Bỏ các file đó ra hoặc cài bộ chuyển đổi rồi gộp lại."); return; }
       officeStatus().then(setOffice).catch(() => {});
     }
+    const useOcr = ocrImages && items.some((i) => i.kind === "image");
+    if (useOcr && !(await ensureOcr())) { setError("Chưa có bộ nhận dạng chữ (Tesseract). Bỏ chọn OCR hoặc cài bộ nhận dạng rồi gộp lại."); return; }
     setPhase("running"); setProgress(null);
     try {
       setResult(await combineFiles({
         files: items.map((i) => ({ path: i.path, title: bookmarks ? i.title : "", password: i.password ?? null })),
         output, bookmarks, keep_bookmarks: keepBookmarks, normalize_a4: normalizeA4, compression,
+        ocr_images: useOcr, ocr_lang: ocrLang,
       }));
       setPhase("done");
     } catch (e) {
@@ -204,6 +211,15 @@ export function CombineDialog({ initial, onClose, onOpenResult, onOpenInOrganize
               <label className="check"><input type="checkbox" checked={bookmarks} onChange={(e) => setBookmarks(e.target.checked)} /> Tạo dấu trang cho mỗi file (sửa tên ngay trong danh sách)</label>
               <label className="check"><input type="checkbox" checked={keepBookmarks} onChange={(e) => setKeepBookmarks(e.target.checked)} /> Giữ dấu trang gốc của từng file PDF (nằm dưới dấu trang của file đó; file có mật khẩu không giữ được)</label>
               <label className="check"><input type="checkbox" checked={normalizeA4} onChange={(e) => setNormalizeA4(e.target.checked)} /> Chuẩn hoá khổ giấy về A4 (co vừa, giữ tỉ lệ, trang ngang dùng A4 ngang)</label>
+              {items.some((i) => i.kind === "image") && (
+                <label className="check">
+                  <input type="checkbox" checked={ocrImages} onChange={(e) => setOcrImages(e.target.checked)} />
+                  OCR các file ảnh để chữ trong PDF tìm kiếm và chọn được
+                  <select aria-label="Ngôn ngữ OCR" value={ocrLang} disabled={!ocrImages} onChange={(e) => setOcrLang(e.target.value)}>
+                    {OCR_LANGS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+                  </select>
+                </label>
+              )}
               <div className="seg-radio" role="radiogroup" aria-label="Mức nén">
                 {(Object.keys(COMPRESSION_LABELS) as CompressionLevel[]).map((k) => (
                   <label key={k} data-on={compression === k}>

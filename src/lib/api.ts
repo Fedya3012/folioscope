@@ -31,6 +31,9 @@ export type CombineRequest = {
   /** Đưa mọi trang về khổ A4. */
   normalize_a4: boolean;
   compression: CompressionLevel;
+  /** Nhận dạng chữ (OCR) cho file ảnh để PDF kết quả tìm kiếm được. */
+  ocr_images: boolean;
+  ocr_lang: string;
 };
 export type CombineProgress = { stage: "convert" | "merge" | "optimize" | "write"; current: number; total: number; file: string | null; percent: number };
 export type CombineResult = { output: string; pages: number; bytes: number; converted: number };
@@ -47,6 +50,22 @@ export type OfficeProgress = { stage: "find" | "download" | "verify" | "extract"
 export const officeInstallSupported = () => invoke<boolean>("office_install_supported");
 export const officeInstall = () => invoke<string>("office_install");
 export const officeInstallCancel = () => invoke<void>("office_install_cancel");
+
+// ---- OCR (Tesseract tải khi cần) ----
+export type OcrProgress = OfficeProgress;
+export const ocrStatus = () => invoke<string | null>("ocr_status");
+export const ocrInstallSupported = () => invoke<boolean>("ocr_install_supported");
+export const ocrInstall = () => invoke<string>("ocr_install");
+export const ocrInstallCancel = () => invoke<void>("ocr_install_cancel");
+
+// ---- Chuyển đổi và OCR ----
+export type ConvertTarget = "to_pdf" | "docx" | "xlsx" | "pptx" | "png" | "jpg" | "txt" | "html" | "ocr";
+export type ConvertRequest = { files: string[]; out_dir: string; target: ConvertTarget; pdfa: boolean; lang: string; dpi: number };
+export type ConvertItemResult = { input: string; outputs: string[]; error: string | null };
+export type ConvertProgress = { current: number; total: number; file: string | null; percent: number; detail: string | null };
+/** Lỗi `OFFICE_MISSING` / `OCR_MISSING` = cần cài LibreOffice / Tesseract trước. */
+export const convertRun = (request: ConvertRequest) => invoke<ConvertItemResult[]>("convert_run", { request });
+export const convertCancel = () => invoke<void>("convert_cancel");
 
 /** Đưa file về PDF để chèn vào tài liệu (PDF giữ nguyên; ảnh, Word, Excel, PowerPoint được chuyển). Lỗi `OFFICE_MISSING` = cần cài LibreOffice. */
 export const preparePdf = (path: string) => invoke<string>("prepare_pdf", { path });
