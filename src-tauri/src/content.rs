@@ -391,6 +391,13 @@ pub fn save_content_edits(path: String, out: String, edits: Vec<ObjEdit>) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    /// Các test sửa nội dung chạy lần lượt: PDFium dùng chung một thư viện và vài lần chạy song song trên macOS đã văng SIGSEGV.
+    fn serial() -> MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     /// PDF thử: 1 dòng chữ có dấu, 1 hình chữ nhật tô đỏ, 1 ảnh nhỏ.
     fn make_pdf(name: &str) -> String {
@@ -418,6 +425,7 @@ mod tests {
 
     #[test]
     fn lists_text_image_and_shape() {
+        let _g = serial();
         let path = make_pdf("list");
         let objs = kinds(&path);
         let k: Vec<_> = objs.iter().map(|o| o.kind).collect();
@@ -432,6 +440,7 @@ mod tests {
 
     #[test]
     fn replaces_text_with_vietnamese_and_deletes_shape() {
+        let _g = serial();
         let path = make_pdf("text");
         let objs = kinds(&path);
         let t = objs.iter().find(|o| o.kind == "text").unwrap();
@@ -455,6 +464,7 @@ mod tests {
 
     #[test]
     fn moves_resizes_and_recolors_shape_and_image() {
+        let _g = serial();
         let path = make_pdf("move");
         let objs = kinds(&path);
         let s = objs.iter().find(|o| o.kind == "shape").unwrap();
@@ -480,6 +490,7 @@ mod tests {
 
     #[test]
     fn replaces_image_pixels() {
+        let _g = serial();
         let path = make_pdf("img");
         let i = kinds(&path).into_iter().find(|o| o.kind == "image").unwrap();
         let pic = std::env::temp_dir().join(format!("folioscope-content-pic-{}.png", std::process::id()));
@@ -496,6 +507,7 @@ mod tests {
 
     #[test]
     fn preview_render_matches_edit_and_reports_new_rects() {
+        let _g = serial();
         let path = make_pdf("preview");
         let t = kinds(&path).into_iter().find(|o| o.kind == "text").unwrap();
         let before = crate::pdf::render_page(path.clone(), 0, 300).unwrap();
@@ -509,6 +521,7 @@ mod tests {
 
     #[test]
     fn overwrite_keeps_backup() {
+        let _g = serial();
         let path = make_pdf("bak");
         let t = kinds(&path).into_iter().find(|o| o.kind == "text").unwrap();
         save_content_edits(path.clone(), path.clone(), vec![ObjEdit { id: t.id, text: Some("Mới".into()), ..Default::default() }]).unwrap();
