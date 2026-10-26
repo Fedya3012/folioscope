@@ -28,6 +28,8 @@ import { PasswordDialog } from "./components/PasswordDialog";
 import { OfficeInstallDialog } from "./components/OfficeInstallDialog";
 import { ViewControls } from "./components/ViewControls";
 import { AnnotateBar } from "./annotations/AnnotateBar";
+import { toast } from "./lib/toast";
+import { checkForUpdate } from "./lib/updater";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
 import { EditBar } from "./edit/EditBar";
 import { EditLayer } from "./edit/EditLayer";
@@ -66,6 +68,17 @@ export function App() {
     const on = () => s.setSystemDark(mq.matches);
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mỗi lần mở app hỏi nhẹ xem có bản mới không; lỗi mạng hay chưa có bản phát hành thì im lặng.
+  useEffect(() => {
+    if (!s.settings.autoCheckUpdate) return;
+    const t = setTimeout(() => {
+      checkForUpdate().then((u) => {
+        if (u) toast.info(`Có bản mới ${u.version}. Vào Cài đặt → Chung để cài.`);
+      }).catch(() => {});
+    }, 4000);
+    return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Một bộ nghe phím duy nhất; các lệnh nằm ở appCommands.ts (và mỗi màn hình đăng ký thêm lệnh của nó).

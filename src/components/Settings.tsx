@@ -6,6 +6,7 @@ import { aiKeyClear, aiKeySet, aiKeyStatus } from "../lib/api";
 import { ACCENTS, RECENT_LIMITS, UI_SIZES, type Settings as S } from "../lib/settings";
 import { toast } from "../lib/toast";
 import { useStore } from "../store";
+import { appVersion, checkForUpdate, explainUpdateError, installUpdate, type UpdateInfo } from "../lib/updater";
 import { Icon } from "./Icon";
 
 type Group = "general" | "appearance" | "display" | "edit" | "convert" | "ai" | "keys" | "account" | "advanced";
@@ -44,6 +45,40 @@ function AiKey() {
         placeholder={saved ? "Dán khoá mới để thay" : "Dán khoá API (sk-ant-…)"} onChange={(e) => setText(e.target.value)} />
       <button className="btn primary" disabled={busy || !text.trim()} onClick={() => void save()}>Lưu</button>
       {saved && <button className="btn ghost danger-text" onClick={() => void clear()}>Xoá khoá</button>}
+    </div>
+  );
+}
+
+/** Phiên bản hiện tại, nút kiểm tra bản mới, cài và khởi động lại. */
+function UpdateControl() {
+  const [ver, setVer] = useState("");
+  const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [state, setState] = useState<"idle" | "checking" | "none" | "installing">("idle");
+  const [frac, setFrac] = useState<number | null>(0);
+  useEffect(() => { appVersion().then(setVer).catch(() => {}); }, []);
+  const run = async () => {
+    setState("checking");
+    try {
+      const u = await checkForUpdate();
+      setInfo(u);
+      setState(u ? "idle" : "none");
+    } catch (e) { setState("idle"); toast.error(explainUpdateError(e)); }
+  };
+  const install = async () => {
+    if (!info) return;
+    setState("installing"); setFrac(0);
+    try { await installUpdate(info, setFrac); }
+    catch (e) { setState("idle"); toast.error(`Cài bản mới không thành công: ${String(e)}`); }
+  };
+  return (
+    <div className="ai-key">
+      <span>Bản {ver || "…"}</span>
+      {state === "none" && <span className="ai-key-ok">Đang dùng bản mới nhất</span>}
+      {info && state !== "installing" && <span className="ai-key-ok">Có bản {info.version}</span>}
+      {state === "installing" && <span>Đang tải {frac == null ? "…" : `${Math.round(frac * 100)}%`}, xong sẽ tự mở lại</span>}
+      {info
+        ? <button className="btn primary" disabled={state === "installing"} onClick={() => void install()}>Cài và mở lại</button>
+        : <button className="btn" disabled={state === "checking"} onClick={() => void run()}>{state === "checking" ? "Đang kiểm tra…" : "Kiểm tra bản mới"}</button>}
     </div>
   );
 }
@@ -161,6 +196,11 @@ export function Settings() {
       control: <Seg label="Khi khởi động" value={st.startup} onChange={(startup) => set({ startup })} options={[["home", "Màn hình Home"], ["last", "File gần nhất"]]} /> },
     { id: "recent", group: "general", label: "Số file gần đây", desc: "File đã ghim không bị tính vào giới hạn.", keywords: "gần đây lịch sử",
       control: <Seg label="Số file gần đây" value={st.recentLimit} onChange={(recentLimit) => set({ recentLimit })} options={RECENT_LIMITS.map((n) => [n, String(n)] as [number, string])} /> },
+
+    { id: "update", group: "general", label: "Cập nhật Folioscope", desc: "Kiểm tra trên GitHub xem có bản mới không. File của bạn không bị đụng tới khi cập nhật.", keywords: "cập nhật update nâng cấp phiên bản version",
+      control: <UpdateControl /> },
+    { id: "autoupdate", group: "general", label: "Tự kiểm tra bản mới", desc: "Mỗi lần mở app, hỏi xem có bản mới không và báo bằng một thông báo nhỏ. Không tự cài.", keywords: "cập nhật tự động update",
+      control: <Toggle label="Tự kiểm tra bản mới" on={st.autoCheckUpdate} onChange={(autoCheckUpdate) => set({ autoCheckUpdate })} /> },
 
     { id: "theme", group: "appearance", label: "Chủ đề", desc: "Sáng, tối, hoặc đi theo hệ điều hành.", keywords: "theme sáng tối dark light",
       control: <ThemeCards value={st.theme} onChange={(theme) => set({ theme })} /> },
