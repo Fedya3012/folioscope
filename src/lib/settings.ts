@@ -7,6 +7,10 @@ export type Startup = "home" | "last";
 /** Zoom mặc định khi mở file: vừa bề rộng, vừa trang, hoặc đúng 100%. */
 export type DefaultZoom = "width" | "page" | "actual";
 
+export type Unit = "mm" | "cm" | "in" | "pt";
+export type OcrLang = "vie" | "eng" | "vie+eng";
+export type OcrQuality = "fast" | "balanced" | "best";
+
 export type Settings = {
   userName: string;
   startup: Startup;
@@ -18,12 +22,28 @@ export type Settings = {
   reduceMotion: boolean;
   defaultZoom: DefaultZoom;
   defaultViewMode: ViewMode;
+  /** Chỉnh sửa & Ghi chú */
+  authorName: string;
+  unit: Unit;
+  snapToGrid: boolean;
+  autoOpenComments: boolean;
+  /** Chuyển đổi & OCR */
+  ocrLang: OcrLang;
+  ocrQuality: OcrQuality;
+  ocrDeskew: boolean;
+  /** AI Assistant (qua mạng) */
+  aiEnabled: boolean;
+  aiRedactSensitive: boolean;
+  aiKeepHistory: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
   userName: "", startup: "home", recentLimit: 20,
   theme: "system", accent: "cobalt", uiSize: 13, density: "comfortable", reduceMotion: false,
   defaultZoom: "width", defaultViewMode: "continuous",
+  authorName: "", unit: "mm", snapToGrid: false, autoOpenComments: true,
+  ocrLang: "vie+eng", ocrQuality: "balanced", ocrDeskew: true,
+  aiEnabled: false, aiRedactSensitive: true, aiKeepHistory: true,
 };
 
 export const ACCENTS: { id: Accent; label: string; swatch: string }[] = [
@@ -38,6 +58,7 @@ export const ACCENTS: { id: Accent; label: string; swatch: string }[] = [
 export const UI_SIZES = [12, 13, 15, 17] as const;
 export const RECENT_LIMITS = [10, 20, 50] as const;
 const ZOOMS: DefaultZoom[] = ["width", "page", "actual"];
+const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
 const VIEW_MODES: ViewMode[] = ["continuous", "single"];
 
 const oneOf = <T,>(v: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
@@ -57,6 +78,16 @@ export function sanitizeSettings(raw: unknown): Settings {
     reduceMotion: typeof r.reduceMotion === "boolean" ? r.reduceMotion : d.reduceMotion,
     defaultZoom: oneOf(r.defaultZoom, ZOOMS, d.defaultZoom),
     defaultViewMode: oneOf(r.defaultViewMode, VIEW_MODES, d.defaultViewMode),
+    authorName: typeof r.authorName === "string" ? r.authorName.slice(0, 60) : d.authorName,
+    unit: oneOf(r.unit, ["mm", "cm", "in", "pt"] as const, d.unit),
+    snapToGrid: bool(r.snapToGrid, d.snapToGrid),
+    autoOpenComments: bool(r.autoOpenComments, d.autoOpenComments),
+    ocrLang: oneOf(r.ocrLang, ["vie", "eng", "vie+eng"] as const, d.ocrLang),
+    ocrQuality: oneOf(r.ocrQuality, ["fast", "balanced", "best"] as const, d.ocrQuality),
+    ocrDeskew: bool(r.ocrDeskew, d.ocrDeskew),
+    aiEnabled: bool(r.aiEnabled, d.aiEnabled),
+    aiRedactSensitive: bool(r.aiRedactSensitive, d.aiRedactSensitive),
+    aiKeepHistory: bool(r.aiKeepHistory, d.aiKeepHistory),
   };
 }
 

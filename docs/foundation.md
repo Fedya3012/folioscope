@@ -20,6 +20,10 @@
 - Tính năng đã có lịch sử riêng: `registerUndoScope({ active, canUndo, canRedo, undo, redo })` (Trang và Ghi chú đã đăng ký, theo chế độ đang mở).
 - Tính năng mới: sau mỗi thao tác gọi `pushUndo({ label, undo, redo })`. Ngăn xếp chung chỉ nhận phím khi không có phạm vi nào đang hoạt động.
 
+## Cài đặt mở rộng, phím tắt tuỳ chỉnh, Bảng lệnh (Gói D)
+- Cài đặt có thêm nhóm Chỉnh sửa, OCR, AI (các giá trị đã lưu trong `Settings`, nhưng chức năng tương ứng sẽ đọc chúng ở các gói sau), Phím tắt, Tài khoản (ghi "Sắp có").
+- Phím tuỳ chỉnh lưu ở khoá `folioscope.keymap` ({ idLệnh: [phím] }). `src/lib/keymap.ts` đọc/ghi, `shortcuts.ts` giữ bộ ghi đè nên `registerCommands` luôn dùng phím đã đổi; `listCommands()` trả phím đang có hiệu lực. Lệnh mới chỉ cần đăng ký như cũ là tự xuất hiện trong bảng Phím tắt và Bảng lệnh.
+- Bảng lệnh (Ctrl+Shift+P): `src/components/CommandPalette.tsx`, tìm mờ không cần dấu (`src/lib/palette.ts`). Lệnh có `when` trả false thì không hiện.
 ## Nhiều tab tài liệu (Gói C)
 - `useStore.tabs` là danh sách đường dẫn các tài liệu đang mở; `path` là tab đang chọn, Home luôn ghim đầu và không nằm trong `tabs`. Mở file đã có tab thì chỉ chuyển sang tab đó.
 - Mỗi tab có trạng thái riêng (trang, zoom, kiểu xem, chế độ, mục lục, ghi chú, danh sách trang). Khi rời tab, `capture()` trong `src/store.ts` cất trạng thái đó cùng với `useAnnot` và `useOrganizer`; khi quay lại, `restore()` nạp lại. Tính năng mới có state theo tài liệu cần được thêm vào hai hàm này.
