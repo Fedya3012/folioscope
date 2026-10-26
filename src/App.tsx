@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Resizer } from "./components/Resizer";
+import { Organizer } from "./components/Organizer";
 import { Viewer } from "./components/Viewer";
 import { pickPdf } from "./lib/api";
+import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
 
 const MODES: [Mode, string][] = [
@@ -10,6 +12,8 @@ const MODES: [Mode, string][] = [
 
 export function App() {
   const s = useStore();
+  const pagesDirty = useOrganizer((o) => o.history.past.length > 0);
+  const organizing = s.mode === "pages";
   const canvas = useRef<HTMLDivElement>(null);
 
   useEffect(() => { document.documentElement.dataset.theme = s.theme; }, [s.theme]);
@@ -18,6 +22,7 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
+      if (!mod && e.key.toLowerCase() === "o" && !(e.target as HTMLElement).closest("input, textarea, [role=dialog]") && s.info) s.setMode("pages");
       if (mod && e.key === "\\") { e.preventDefault(); s.togglePanel(e.shiftKey ? "right" : "left"); }
       if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); s.zoomBy(1); }
       if (mod && e.key === "-") { e.preventDefault(); s.zoomBy(-1); }
@@ -54,7 +59,7 @@ export function App() {
         <nav className="rail" aria-label="Điều hướng">
           <button aria-label="Hình thu nhỏ" aria-pressed={s.leftOpen} onClick={() => s.togglePanel("left")}>▤</button>
         </nav>
-        {s.leftOpen && (
+        {s.leftOpen && !organizing && (
           <>
             <aside className="panel left" style={{ width: s.leftWidth }} aria-label="Hình thu nhỏ">
               <h2>Hình thu nhỏ</h2>
@@ -72,7 +77,7 @@ export function App() {
         )}
 
         <main className="canvas" ref={canvas}>
-          {s.info ? <Viewer /> : (
+          {organizing ? <Organizer /> : s.info ? <Viewer /> : (
             <div className="empty">
               <h1>Mở file PDF đầu tiên của bạn</h1>
               <p>{s.error ?? "Chọn một file để xem. Kéo thả sẽ có ở bản sau."}</p>
@@ -81,7 +86,7 @@ export function App() {
           )}
         </main>
 
-        {s.rightOpen && (
+        {s.rightOpen && !organizing && (
           <>
             <Resizer side="right" onDrag={(w) => s.dragPanel("right", w)} />
             <aside className="panel right" style={{ width: s.rightWidth }} aria-label="Thuộc tính">
@@ -94,6 +99,7 @@ export function App() {
 
       <footer className="statusbar">
         <span>{s.info ? `${s.currentPage + 1} / ${s.info.page_count}` : "—"}</span>
+        {pagesDirty && <span>Có thay đổi trang chưa lưu</span>}
         <span className="spacer" />
         <button className="btn ghost" onClick={() => s.zoomBy(-1)} aria-label="Thu nhỏ">−</button>
         <span>{Math.round(s.zoom * 100)}%</span>
