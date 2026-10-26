@@ -2,6 +2,7 @@
 
 pub mod convert;
 pub mod merge;
+pub mod normalize;
 pub mod optimize;
 
 use std::path::PathBuf;
@@ -52,6 +53,9 @@ pub struct InputFile {
     pub path: PathBuf,
     /// Tiêu đề dấu trang cho file này; rỗng thì không tạo dấu trang riêng.
     pub title: String,
+    /// Mật khẩu mở file PDF có khoá.
+    #[serde(default)]
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -59,6 +63,12 @@ pub struct CombineRequest {
     pub files: Vec<InputFile>,
     pub output: PathBuf,
     pub bookmarks: bool,
+    /// Giữ dấu trang gốc của từng PDF.
+    #[serde(default)]
+    pub keep_bookmarks: bool,
+    /// Đưa mọi trang về khổ A4 (co vừa, giữ tỉ lệ, theo hướng dọc/ngang của trang).
+    #[serde(default)]
+    pub normalize_a4: bool,
     pub compression: Compression,
 }
 
@@ -118,13 +128,14 @@ pub fn combine(
             convert::Kind::Unsupported => return Err(file_err(&f.path, "định dạng này chưa được hỗ trợ")),
             _ => { converted += 1; convert::to_pdf(&f.path, tmp.path(), office, cancel)? }
         };
-        docs.push(merge::load(&pdf_path).map_err(|e| file_err(&f.path, e))?);
+        docs.push(merge::load(&pdf_path, f.password.as_deref()).map_err(|e| file_err(&f.path, e))?);
     }
     cancel.check()?;
     on_progress(Progress { stage: "merge", current: n, total: n, file: None, percent: 50.0 });
     let titles: Vec<Option<&str>> = req.files.iter().map(|f| (req.bookmarks && !f.title.trim().is_empty()).then_some(f.title.as_str())).collect();
-    let mut merged = merge::merge(docs, &titles)?;
+    let mut merged = merge::merge(docs, &titles, req.keep_bookmarks)?;
     let pages = merged.get_pages().len();
+    if req.normalize_a4 { normalize::normalize_a4(&mut merged); }
 
     cancel.check()?;
     on_progress(Progress { stage: "optimize", current: 0, total: 1, file: None, percent: 80.0 });

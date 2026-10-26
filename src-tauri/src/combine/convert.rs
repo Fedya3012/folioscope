@@ -61,8 +61,10 @@ pub fn find_office() -> Option<PathBuf> {
     ];
     if let Some(p) = fixed.iter().map(PathBuf::from).find(|p| p.is_file()) { return Some(p); }
     let exe = if cfg!(windows) { "soffice.exe" } else { "soffice" };
-    std::env::var_os("PATH")
-        .and_then(|paths| std::env::split_paths(&paths).map(|d| d.join(exe)).find(|p| p.is_file()))
+    let on_path = std::env::var_os("PATH")
+        .and_then(|paths| std::env::split_paths(&paths).map(|d| d.join(exe)).find(|p| p.is_file()));
+    // Bản app tự tải về (xem office_install) đứng cuối: máy đã có LibreOffice thì dùng bản đó.
+    on_path.or_else(crate::office_install::find_managed)
 }
 
 const OFFICE_TIMEOUT: Duration = Duration::from_secs(300);
