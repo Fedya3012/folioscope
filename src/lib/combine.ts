@@ -1,7 +1,7 @@
 // Logic thuần của hộp thoại Gộp file: tách khỏi giao diện để kiểm thử được.
 import type { CombineProgress, CompressionLevel, FileProbe } from "./api";
 
-export type Item = FileProbe & { id: number; title: string };
+export type Item = FileProbe & { id: number; title: string; password?: string };
 
 let nextId = 1;
 export const makeItem = (p: FileProbe): Item => ({ ...p, id: nextId++, title: stripExt(p.name) });
@@ -29,6 +29,14 @@ export function appendUnique(list: Item[], probes: FileProbe[]): Item[] {
   const fresh = probes.filter((p) => !seen.has(p.path) && seen.add(p.path)).map(makeItem);
   return [...list, ...fresh];
 }
+
+/** Cập nhật hàng `id` bằng kết quả đọc lại file sau khi nhập mật khẩu, giữ nguyên thứ tự và tên dấu trang. */
+export function applyProbe(list: Item[], id: number, probe: FileProbe, password: string): Item[] {
+  return list.map((i) => (i.id === id ? { ...i, ...probe, id: i.id, title: i.title, password } : i));
+}
+
+/** Hàng đang cần mật khẩu (chưa nhập hoặc nhập sai). */
+export const needsPassword = (i: Item) => i.needs_password;
 
 /** Tên gợi ý cho file kết quả: "<tên file đầu> (gộp).pdf" cạnh file đầu tiên. */
 export function suggestOutput(items: Item[]): string {

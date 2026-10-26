@@ -18,6 +18,7 @@ import { registerAppCommands } from "./appCommands";
 import { Toaster } from "./components/Toaster";
 import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput } from "./lib/viewer";
 import { PasswordDialog } from "./components/PasswordDialog";
+import { OfficeInstallDialog } from "./components/OfficeInstallDialog";
 import { ViewControls } from "./components/ViewControls";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
@@ -81,7 +82,8 @@ export function App() {
   useEffect(() => {
     const sub = getCurrentWebview().onDragDropEvent((e) => {
       const t = e.payload.type;
-      if (combineOpen.current) { setDragOver(false); return; }
+      // Hộp thoại Gộp file và màn hình Trang tự xử lý file thả vào (Trang chèn đúng chỗ thả).
+      if (combineOpen.current || useStore.getState().mode === "pages") { setDragOver(false); return; }
       if (t === "enter" || t === "over") setDragOver(true);
       else if (t === "leave") setDragOver(false);
       else if (t === "drop") {
@@ -201,11 +203,13 @@ export function App() {
       </footer>
       </>)}
       <PasswordDialog />
+      <OfficeInstallDialog />
       <ConfirmClose />
       <Toaster />
       {s.settingsOpen && <Settings />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
-      {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}
+      {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)}
+        onOpenInOrganizer={(paths) => void useOrganizer.getState().openFiles(paths)} />}
     </div>
   );
 }
