@@ -1,0 +1,28 @@
+/* Lớp ghi chú nằm trên từng trang; Viewer không bị sửa. */
+.page { position: relative; }
+.annot-root { position: absolute; inset: 0; }
+.annot-svg { display: block; touch-action: none; overflow: visible; }
+.annot-svg.tool-select { cursor: default; }
+.annot-svg:not(.tool-select):not(.tool-none) { cursor: crosshair; }
+
+.annot-bar { display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px; background: var(--surface-2); border-bottom: 1px solid var(--border-default); overflow-x: auto; }
+.annot-bar button, .float-toolbar button { height: 28px; padding: 0 10px; border: 0; border-radius: var(--r-md); background: transparent; color: var(--text-secondary); cursor: pointer; white-space: nowrap; }
+.annot-bar button:hover:not(:disabled), .float-toolbar button:hover { background: var(--state-hover); }
+.annot-bar button:disabled { color: var(--text-disabled); cursor: default; }
+.annot-bar button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary-soft-text); font-weight: 600; }
+.annot-bar .save { background: var(--primary); color: var(--primary-on); font-weight: 600; }
+.annot-bar .save:hover:not(:disabled) { background: var(--primary-hover); }
+.annot-bar .save:disabled { background: var(--state-pressed); color: var(--text-disabled); }
+.sep { width: 1px; height: 20px; background: var(--border-default); margin: 0 6px; }
+
+.swatch { width: 18px !important; height: 18px !important; padding: 0 !important; border-radius: 50% !important; border: 2px solid var(--surface-1) !important; box-shadow: 0 0 0 1px var(--border-strong); }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--primary) !important; }
+
+.float-toolbar { position: absolute; z-index: 20; display: flex; align-items: center; gap: 4px; padding: 4px 6px; background: var(--surface-3); border: 1px solid var(--border-default); border-radius: var(--r-lg); box-shadow: var(--e3); }
+.float-toolbar .val { min-width: 14px; text-align: center; font: 500 var(--fs-small)/16px var(--font-mono); color: var(--text-secondary); }
+.float-toolbar .danger { color: var(--danger); }
+
+.annot-text { width: 100%; height: 100%; margin: 0; padding: 4px 6px; border: 1px solid var(--border-strong); border-radius: 4px; resize: none; font: 400 14px/1.35 var(--font-ui); outline: none; box-sizing: border-box; }
+.annot-text:focus { border-color: var(--primary); }
+.annot-text.static { border: 0; white-space: pre-wrap; overflow: hidden; pointer-events: none; }
+.annot-slot { min-height: 0; }
