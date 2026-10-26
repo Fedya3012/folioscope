@@ -1,0 +1,43 @@
+/* Design tokens của Folioscope (khớp bản thiết kế UI/UX). Mọi màu và cỡ đi qua biến, không viết cứng trong component. */
+:root {
+  --bg-app: #F3F4F7; --bg-canvas: #E7E9EE;
+  --surface-1: #FFFFFF; --surface-2: #F8F9FB; --surface-3: #FFFFFF;
+  --border-subtle: #E4E7EC; --border-default: #D5DAE1; --border-strong: #B7BFCB;
+  --text-primary: #14171C; --text-secondary: #4A5262; --text-tertiary: #6E7687; --text-disabled: #A3AAB7;
+  --primary: #3D63EE; --primary-hover: #2B4FD6; --primary-pressed: #2240AE; --primary-on: #FFFFFF;
+  --primary-soft: #EEF3FF; --primary-soft-text: #2240AE;
+  --focus-ring: #3D63EE;
+  --state-hover: rgba(20,23,28,.05); --state-pressed: rgba(20,23,28,.09);
+  --success: #1F9D61; --warning: #B86E00; --danger: #DC3B3B;
+  --e1: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --e2: 0 2px 4px rgba(16,24,40,.06), 0 4px 8px rgba(16,24,40,.08);
+  --e3: 0 12px 24px -6px rgba(16,24,40,.12), 0 4px 8px -4px rgba(16,24,40,.08);
+
+  --font-ui: "Inter", "SF Pro Text", "Segoe UI Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --fs-body: 13px; --fs-small: 12px; --fs-caption: 11px;
+
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
+  --h-titlebar: 40px; --h-toolbar: 48px; --h-status: 28px; --w-rail: 48px;
+
+  --dur-fast: 120ms; --dur-normal: 180ms; --dur-moderate: 240ms;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+}
+
+:root[data-theme="dark"] {
+  --bg-app: #0F1115; --bg-canvas: #0B0D10;
+  --surface-1: #16191F; --surface-2: #1C2027; --surface-3: #232832;
+  --border-subtle: #232831; --border-default: #2F3540; --border-strong: #444C5A;
+  --text-primary: #ECEEF2; --text-secondary: #A9B0BD; --text-tertiary: #7D8594; --text-disabled: #4E5562;
+  --primary: #6A8BFF; --primary-hover: #82A0FF; --primary-pressed: #5476F5; --primary-on: #0B1230;
+  --primary-soft: #1B2442; --primary-soft-text: #B9CCFF;
+  --focus-ring: #82A0FF;
+  --state-hover: rgba(255,255,255,.06); --state-pressed: rgba(255,255,255,.10);
+  --success: #3DCB86; --warning: #F5A524; --danger: #FF6B6B;
+  --e1: 0 1px 2px rgba(0,0,0,.40); --e2: 0 2px 6px rgba(0,0,0,.45); --e3: 0 12px 28px -6px rgba(0,0,0,.55);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 1ms; --dur-normal: 1ms; --dur-moderate: 1ms; }
+}

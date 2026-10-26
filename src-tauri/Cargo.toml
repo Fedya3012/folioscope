@@ -1,0 +1,22 @@
+[package]
+name = "folioscope"
+version = "0.1.0"
+description = "Folioscope PDF studio"
+edition = "2021"
+
+[lib]
+name = "folioscope_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+pdfium-render = { version = "0.9", features = ["thread_safe"] }
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png"] }
+thiserror = "2"
