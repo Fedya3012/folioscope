@@ -1,0 +1,9 @@
+node_modules
+dist
+src-tauri/target
+src-tauri/gen
+# thư viện PDFium tải về bằng scripts/fetch-pdfium; không đưa vào git
+src-tauri/pdfium/*
+!src-tauri/pdfium/.gitkeep
+# file PDF thử là sách có bản quyền, không bao giờ commit
+*.pdf
