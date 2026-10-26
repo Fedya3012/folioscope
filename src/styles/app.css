@@ -14,7 +14,8 @@ button { font: inherit; color: inherit; }
 
 .tab { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; align-self: flex-end; color: var(--text-secondary); background: transparent; border-color: transparent; cursor: pointer; border-radius: var(--r-sm) var(--r-sm) 0 0; font-weight: 500; background: var(--surface-1); border: 1px solid var(--border-default); border-bottom: none; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
->>>>>>> origin/main
+.btn { height: var(--h-control, 32px); flex: none; white-space: nowrap; padding: 0 14px; border-radius: var(--r-md); border: 1px solid transparent; font-weight: 600; cursor: pointer; background: transparent; transition: background-color var(--dur-fast) var(--ease), transform 80ms var(--ease); }
+.btn:active { transform: scale(.97); }
 .btn.primary { background: var(--primary); color: var(--primary-on); }
 .btn.primary:hover { background: var(--primary-hover); }
 .btn.secondary { background: var(--surface-1); border-color: var(--border-strong); }
