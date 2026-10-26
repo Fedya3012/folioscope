@@ -103,3 +103,15 @@ kbd { font: 600 var(--fs-caption)/14px var(--font-ui); padding: 1px 6px; border:
 .drop-overlay { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: color-mix(in srgb, var(--primary) 12%, transparent); border: 2px dashed var(--primary); pointer-events: none; }
 .drop-overlay div { padding: 20px 32px; border-radius: 16px; background: var(--surface-3); box-shadow: var(--e3); font-size: 20px; font-weight: 600; }
 .drop-overlay small { display: block; font-size: var(--fs-small); font-weight: 400; color: var(--text-tertiary); }
+
+/* Đám mây và thanh dung lượng: giữ chỗ theo thiết kế, chưa có kết nối thật. */
+.home-side { gap: 16px; }
+.home-side nav { flex: none; }
+.side-cloud { display: flex; flex-direction: column; gap: 2px; margin-top: auto; }
+.side-cloud h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; padding: 0 10px; font-size: var(--fs-caption); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-tertiary); }
+.side-item:disabled { opacity: .55; cursor: default; }
+.side-item:disabled:hover { background: transparent; color: var(--text-secondary); }
+.storage { padding: 8px 10px 0; display: grid; gap: 4px; }
+.storage-bar { height: 6px; border-radius: 999px; background: var(--border-default); overflow: hidden; }
+.storage-bar i { display: block; width: 0; height: 100%; background: var(--primary); }
+.storage small { color: var(--text-tertiary); font-size: var(--fs-caption); }
