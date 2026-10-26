@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { LEFT, RIGHT, ZOOM_MAX, ZOOM_MIN, clamp, resolvePanelWidth, stepZoom } from "./lib/layout";
-import { getOutline, openDocument, searchText, type DocumentInfo, type OutlineItem, type SearchHit } from "./lib/api";
+import { getOutline, openDocument, probeFiles, searchText, type DocumentInfo, type OutlineItem, type SearchHit } from "./lib/api";
+import { addRecent, parseRecent, removeRecent, togglePin, trimRecent, type RecentFile } from "./lib/recent";
+import { DEFAULT_SETTINGS, initialZoom, resolveTheme, sanitizeSettings, type Settings } from "./lib/settings";
 import { stepIndex, type Fit, type ViewMode } from "./lib/viewer";
 
 export type Theme = "light" | "dark";
@@ -15,16 +17,42 @@ export type SearchState = { query: string; matchCase: boolean; hits: SearchHit[]
 let searchGen = 0;
 const noSearch: SearchState = { query: "", matchCase: false, hits: [], active: -1, busy: false, truncated: false, error: null };
 
-const savedTheme = (): Theme => {
+const SETTINGS_KEY = "folioscope.settings", RECENT_KEY = "folioscope.recent";
+
+function readJson(key: string): unknown {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; /* chạy được dù không có localStorage */ }
+}
+function writeJson(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* bỏ qua */ }
+}
+
+const systemDark = () => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
+
+const savedSettings = (): Settings => {
+  const raw = readJson(SETTINGS_KEY);
+  if (raw) return sanitizeSettings(raw);
+  // Bản cũ chỉ lưu chủ đề sáng/tối riêng.
   try {
     const t = localStorage.getItem("folioscope.theme");
-    if (t === "dark" || t === "light") return t;
-  } catch { /* chạy được dù không có localStorage */ }
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    if (t === "dark" || t === "light") return { ...DEFAULT_SETTINGS, theme: t };
+  } catch { /* bỏ qua */ }
+  return DEFAULT_SETTINGS;
 };
 
 interface State {
   theme: Theme;
+  /** "home" = màn hình Bắt đầu; "doc" = tài liệu đang mở. */
+  view: "home" | "doc";
+  settings: Settings; settingsOpen: boolean;
+  recent: RecentFile[];
+  setView(v: "home" | "doc"): void;
+  setSettingsOpen(open: boolean): void;
+  updateSettings(patch: Partial<Settings>): void;
+  resetSettings(): void;
+  setSystemDark(dark: boolean): void;
+  togglePinRecent(path: string): void;
+  forgetRecent(path: string): void;
+  clearRecent(): void;
   mode: Mode;
   leftOpen: boolean; leftWidth: number;
   rightOpen: boolean; rightWidth: number;
@@ -37,6 +65,7 @@ interface State {
   togglePanel(p: PanelKey): void;
   dragPanel(p: PanelKey, rawWidth: number): void;
   load(path: string): Promise<void>;
+  noteRecent(path: string, pages: number): Promise<void>;
   setPage(i: number): void;
   zoomBy(dir: 1 | -1): void;
   setZoom(z: number, fit?: Fit): void;
@@ -50,18 +79,38 @@ interface State {
   goToHit(i: number): void;
 }
 
+const initialSettings = savedSettings();
+let prefersDark = systemDark();
+
 export const useStore = create<State>((set, get) => ({
-  theme: savedTheme(), mode: "view",
+  theme: resolveTheme(initialSettings.theme, prefersDark), mode: "view",
+  view: "home", settings: initialSettings, settingsOpen: false,
+  recent: parseRecent(readJson(RECENT_KEY)),
   leftOpen: true, leftWidth: LEFT.def, rightOpen: false, rightWidth: RIGHT.def,
   path: null, info: null, error: null, currentPage: 0, zoom: 1,
-  viewMode: "continuous", fit: "width", tool: "select",
+  viewMode: initialSettings.defaultViewMode, fit: initialZoom(initialSettings.defaultZoom).fit, tool: "select",
   leftTab: "thumbs", outline: [], nav: { page: 0, y: null, nonce: 0 }, search: noSearch,
 
   toggleTheme() {
-    const theme = get().theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem("folioscope.theme", theme); } catch { /* bỏ qua */ }
-    set({ theme });
+    get().updateSettings({ theme: get().theme === "dark" ? "light" : "dark" });
   },
+  setView: (view) => set({ view }),
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+  updateSettings(patch) {
+    const settings = sanitizeSettings({ ...get().settings, ...patch });
+    writeJson(SETTINGS_KEY, settings);
+    const recent = trimRecent(get().recent, settings.recentLimit);
+    if (recent.length !== get().recent.length) writeJson(RECENT_KEY, recent);
+    set({ settings, recent, theme: resolveTheme(settings.theme, prefersDark), viewMode: patch.defaultViewMode ?? get().viewMode });
+  },
+  resetSettings() { get().updateSettings(DEFAULT_SETTINGS); },
+  setSystemDark(dark) {
+    prefersDark = dark;
+    set({ theme: resolveTheme(get().settings.theme, dark) });
+  },
+  togglePinRecent(path) { const recent = togglePin(get().recent, path); writeJson(RECENT_KEY, recent); set({ recent }); },
+  forgetRecent(path) { const recent = removeRecent(get().recent, path); writeJson(RECENT_KEY, recent); set({ recent }); },
+  clearRecent() { const recent = get().recent.filter((f) => f.pinned); writeJson(RECENT_KEY, recent); set({ recent }); },
   setMode: (mode) => set({ mode }),
   togglePanel: (p) => set(p === "left" ? { leftOpen: !get().leftOpen } : { rightOpen: !get().rightOpen }),
   dragPanel(p, raw) {
@@ -72,12 +121,25 @@ export const useStore = create<State>((set, get) => ({
     try {
       const info = await openDocument(path);
       searchGen++;
-      set({ path, info, error: null, currentPage: 0, fit: "width", outline: [], search: noSearch, nav: { page: 0, y: null, nonce: get().nav.nonce + 1 } });
+      const z = initialZoom(get().settings.defaultZoom);
+      set({ path, info, view: "doc", error: null, currentPage: 0, fit: z.fit, zoom: z.zoom ?? get().zoom, outline: [], search: noSearch, nav: { page: 0, y: null, nonce: get().nav.nonce + 1 } });
       // Mục lục có thể không có hoặc hỏng; không để nó cản việc mở file.
+      void get().noteRecent(path, info.page_count);
       getOutline(path).then((outline) => { if (get().path === path) set({ outline }); }).catch(() => {});
     } catch (e) {
       set({ error: String(e) });
     }
+  },
+  async noteRecent(path, pages) {
+    const { recentLimit } = get().settings;
+    const put = (size: number | null) => {
+      const recent = addRecent(get().recent, { path, openedAt: Date.now(), size, pages }, recentLimit);
+      writeJson(RECENT_KEY, recent);
+      set({ recent });
+    };
+    put(null);
+    // Dung lượng chỉ để hiển thị; không có cũng không sao.
+    try { const [p] = await probeFiles([path]); if (p) put(p.size); } catch { /* bỏ qua */ }
   },
   setPage: (i) => set({ currentPage: clamp(i, 0, Math.max(0, (get().info?.page_count ?? 1) - 1)) }),
   zoomBy: (dir) => set({ zoom: clamp(stepZoom(get().zoom, dir), ZOOM_MIN, ZOOM_MAX), fit: null }),
