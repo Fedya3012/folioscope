@@ -128,7 +128,7 @@ export function CombineDialog({ initial, onClose, onOpenResult }: {
           <div className="modal-body">
             <div className="row">
               <button className="btn secondary" disabled={phase === "running"} onClick={async () => add(await pickFilesToCombine())}>Thêm file…</button>
-              <span className="hint">hoặc kéo thả file vào cửa sổ · {items.length} file · {totalPages(items) || "—"} trang đã biết</span>
+              <span className="hint">{items.length ? `${items.length} file${totalPages(items) ? ` · ${totalPages(items)} trang PDF` : ""} · kéo thả thêm file vào cửa sổ` : "hoặc kéo thả file vào cửa sổ"}</span>
             </div>
 
             {items.length === 0 ? (
