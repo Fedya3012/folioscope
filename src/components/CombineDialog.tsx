@@ -8,7 +8,7 @@ import {
 } from "../lib/api";
 import {
   appendUnique, blocked, COMPRESSION_LABELS, dirOf, formatBytes, moveItem, needsOffice, progressLabel, sanitizeFileName,
-  stripExt, suggestOutput, totalPages, type Item,
+  suggestOutput, totalPages, type Item,
 } from "../lib/combine";
 
 type Phase = "edit" | "running" | "done";
