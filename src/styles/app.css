@@ -74,16 +74,18 @@ button { font: inherit; color: inherit; }
 .hint { color: var(--text-tertiary); font-size: var(--fs-small); margin: 0; }
 .hint.path, .path { font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .drop-empty { padding: 40px 24px; border: 1px dashed var(--border-strong); border-radius: var(--r-md); text-align: center; color: var(--text-secondary); }
-.file-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-default); border-radius: var(--r-md); max-height: 280px; overflow: auto; }
-.file-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--border-subtle); background: var(--surface-1); }
+.file-list { flex: none; list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-default); border-radius: var(--r-md); max-height: 280px; overflow: auto; }
+.file-list li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 4px 8px; padding: 8px 8px 8px 6px; border-bottom: 1px solid var(--border-subtle); background: var(--surface-1); }
 .file-list li:last-child { border-bottom: 0; }
 .file-list li.dragging { background: var(--primary-soft); }
 .file-list .handle { cursor: grab; color: var(--text-tertiary); touch-action: none; user-select: none; padding: 0 4px; }
 .file-list .num { width: 20px; text-align: right; font: 500 var(--fs-small)/16px var(--font-mono); color: var(--text-tertiary); }
 .file-list .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.file-list .meta small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-list .meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .file-list .meta small { color: var(--text-tertiary); font-size: var(--fs-small); }
-.file-list .title { width: 190px; flex: none; }
+.file-list .title { grid-column: 3 / -1; grid-row: 2; width: 100%; min-width: 0; }
+.file-list .ctl { grid-column: 4; grid-row: 1; display: flex; gap: 2px; }
 .err { color: var(--danger); }
 .ok { color: var(--success); font-weight: 600; font-size: 16px; margin: 0; }
 .notice { margin: 0; padding: 8px 12px; border-radius: var(--r-md); font-size: var(--fs-small); }

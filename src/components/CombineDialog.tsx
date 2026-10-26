@@ -154,9 +154,11 @@ export function CombineDialog({ initial, onClose, onOpenResult }: {
                       <input className="title" aria-label={`Tên dấu trang của ${it.name}`} value={it.title} disabled={phase === "running"}
                         onChange={(e) => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, title: e.target.value } : x))} />
                     )}
-                    <button className="btn ghost icon" aria-label="Lên" disabled={i === 0 || phase === "running"} onClick={() => setItems((c) => moveItem(c, i, i - 1))}>↑</button>
-                    <button className="btn ghost icon" aria-label="Xuống" disabled={i === items.length - 1 || phase === "running"} onClick={() => setItems((c) => moveItem(c, i, i + 1))}>↓</button>
-                    <button className="btn ghost icon" aria-label={`Bỏ ${it.name}`} disabled={phase === "running"} onClick={() => setItems((c) => c.filter((x) => x.id !== it.id))}>✕</button>
+                    <span className="ctl">
+                      <button className="btn ghost icon" aria-label="Lên" disabled={i === 0 || phase === "running"} onClick={() => setItems((c) => moveItem(c, i, i - 1))}>↑</button>
+                      <button className="btn ghost icon" aria-label="Xuống" disabled={i === items.length - 1 || phase === "running"} onClick={() => setItems((c) => moveItem(c, i, i + 1))}>↓</button>
+                      <button className="btn ghost icon" aria-label={`Bỏ ${it.name}`} disabled={phase === "running"} onClick={() => setItems((c) => c.filter((x) => x.id !== it.id))}>✕</button>
+                    </span>
                   </li>
                 ))}
               </ol>
