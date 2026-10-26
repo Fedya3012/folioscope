@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 
 export type DocumentInfo = { page_count: number; page_sizes: [number, number][] };
 export type RenderedPage = { width: number; height: number; png_base64: string };
@@ -13,6 +13,20 @@ export async function pickPdf(): Promise<string | null> {
   return typeof picked === "string" ? picked : null;
 }
 
+/** Một trang của tài liệu kết quả khi ghi file (khớp `PageRef` ở Rust). */
+export type PageRef = { source: string | null; index: number; rotate: number; width: number; height: number };
+
+export const exportPages = (pages: PageRef[], output: string) =>
+  invoke<number>("export_pages", { pages, output });
+
+export async function pickSavePath(defaultPath: string): Promise<string | null> {
+  return save({ defaultPath, filters: [{ name: "PDF", extensions: ["pdf"] }] });
+}
+
+export async function pickFolder(): Promise<string | null> {
+  const picked = await open({ directory: true, multiple: false });
+  return typeof picked === "string" ? picked : null;
+}
 /** Hình chữ nhật theo tỉ lệ trang (0..1, gốc ở góc trên trái): [trái, trên, rộng, cao]. */
 export type NormRect = [number, number, number, number];
 export type OutlineItem = { title: string; page: number | null; children: OutlineItem[] };

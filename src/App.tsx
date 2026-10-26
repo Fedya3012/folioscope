@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Resizer } from "./components/Resizer";
+import { Organizer } from "./components/Organizer";
 import { Outline } from "./components/Outline";
 import { SEARCH_INPUT_ID, SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
@@ -8,6 +9,7 @@ import { parsePageInput } from "./lib/viewer";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
 import { pickPdf } from "./lib/api";
+import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
 
 const TAB_TITLES = { thumbs: "Hình thu nhỏ", outline: "Mục lục", search: "Tìm kiếm" } as const;
@@ -18,6 +20,8 @@ const MODES: [Mode, string][] = [
 
 export function App() {
   const s = useStore();
+  const pagesDirty = useOrganizer((o) => o.history.past.length > 0);
+  const organizing = s.mode === "pages";
   const [pageText, setPageText] = useState("");
   useEffect(() => { setPageText(s.info ? String(s.currentPage + 1) : ""); }, [s.currentPage, s.info]);
 
@@ -27,6 +31,7 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
+      if (!mod && e.key.toLowerCase() === "o" && !(e.target as HTMLElement).closest("input, textarea, [role=dialog]") && s.info) s.setMode("pages");
       if (mod && e.key === "\\") { e.preventDefault(); s.togglePanel(e.shiftKey ? "right" : "left"); }
       if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); s.zoomBy(1); }
       if (mod && e.key === "-") { e.preventDefault(); s.zoomBy(-1); }
@@ -92,7 +97,7 @@ export function App() {
           <button aria-label="Mục lục" title="Mục lục (bookmark)" aria-pressed={s.leftOpen && s.leftTab === "outline"} onClick={() => s.openLeftTab("outline")}>☰</button>
           <button aria-label="Tìm kiếm" title="Tìm kiếm (Ctrl+F)" aria-pressed={s.leftOpen && s.leftTab === "search"} onClick={() => s.openLeftTab("search")}>⌕</button>
         </nav>
-        {s.leftOpen && (
+        {s.leftOpen && !organizing && (
           <>
             <aside className="panel left" style={{ width: s.leftWidth }} aria-label={TAB_TITLES[s.leftTab]}>
               <h2>{TAB_TITLES[s.leftTab]}</h2>
@@ -105,7 +110,7 @@ export function App() {
         )}
 
         <main className="canvas">
-          {s.info ? <><Viewer /><AnnotationLayer /></> : (
+          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /></> : (
             <div className="empty">
               <h1>Mở file PDF đầu tiên của bạn</h1>
               <p>{s.error ?? "Chọn một file để xem. Kéo thả sẽ có ở bản sau."}</p>
@@ -114,7 +119,7 @@ export function App() {
           )}
         </main>
 
-        {s.rightOpen && (
+        {s.rightOpen && !organizing && (
           <>
             <Resizer side="right" onDrag={(w) => s.dragPanel("right", w)} />
             <aside className="panel right" style={{ width: s.rightWidth }} aria-label="Thuộc tính">
@@ -141,6 +146,7 @@ export function App() {
         />
         <span>/ {s.info ? s.info.page_count : "—"}</span>
         <button className="btn ghost" aria-label="Trang sau" disabled={!s.info || s.currentPage >= s.info.page_count - 1} onClick={() => s.goToPage(s.currentPage + 1)}>›</button>
+        {pagesDirty && <span>Có thay đổi trang chưa lưu</span>}
         <span className="spacer" />
         <button className="btn ghost" onClick={() => s.setFit("width")} aria-pressed={s.fit === "width"}>Vừa bề rộng</button>
         <button className="btn ghost" onClick={() => s.setFit("page")} aria-pressed={s.fit === "page"}>Vừa trang</button>

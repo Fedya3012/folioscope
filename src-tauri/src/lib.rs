@@ -1,4 +1,5 @@
 mod annotations;
+mod organizer;
 mod pdf;
 mod viewer;
 
@@ -12,7 +13,8 @@ pub fn run() {
             pdf::save_annotations,
             viewer::get_outline,
             viewer::get_text_runs,
-            viewer::search_text
+            viewer::search_text,
+            organizer::export_pages
         ])
         .run(tauri::generate_context!())
         .expect("không khởi động được Folioscope");
