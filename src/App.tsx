@@ -1,7 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { Resizer } from "./components/Resizer";
 import { Viewer } from "./components/Viewer";
-import { pickPdf } from "./lib/api";
+import { CombineDialog } from "./components/CombineDialog";
+import { pickPdf, takeLaunchFiles } from "./lib/api";
 import { useStore, type Mode } from "./store";
 
 const MODES: [Mode, string][] = [
@@ -26,6 +28,18 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // null = đóng; mảng = mở hộp thoại Gộp file với các file ban đầu này.
+  const [combine, setCombine] = useState<string[] | null>(null);
+  const closeCombine = useCallback(() => setCombine(null), []);
+
+  // File đến từ menu chuột phải của Windows (lúc khởi động hoặc khi app đã mở sẵn).
+  useEffect(() => {
+    const pull = () => takeLaunchFiles().then((f) => { if (f.length) setCombine(f); }).catch(() => {});
+    void pull();
+    const sub = listen("launch-combine", pull);
+    return () => { void sub.then((un) => un()); };
+  }, []);
+
   const open = async () => { const p = await pickPdf(); if (p) await s.load(p); };
   const fileName = s.path?.split(/[\\/]/).pop();
 
@@ -40,6 +54,7 @@ export function App() {
 
       <div className="toolbar" role="toolbar" aria-label="Công cụ chính">
         <button className="btn secondary" onClick={open}>Mở file…</button>
+        <button className="btn secondary" onClick={() => setCombine([])}>Gộp file…</button>
         <span className="spacer" />
         <div className="segmented" role="tablist" aria-label="Chế độ">
           {MODES.map(([m, label]) => (
@@ -99,6 +114,7 @@ export function App() {
         <span>{Math.round(s.zoom * 100)}%</span>
         <button className="btn ghost" onClick={() => s.zoomBy(1)} aria-label="Phóng to">+</button>
       </footer>
+      {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}
     </div>
   );
 }
