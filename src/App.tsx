@@ -8,6 +8,8 @@ import { SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
 import { Viewer } from "./components/Viewer";
 import { CombineDialog } from "./components/CombineDialog";
+import { AiPanel } from "./components/AiPanel";
+import { CompareDialog } from "./components/CompareDialog";
 import { ConvertDialog } from "./components/ConvertDialog";
 import { OcrInstallDialog } from "./components/OcrInstallDialog";
 import { Home } from "./components/Home";
@@ -84,6 +86,18 @@ export function App() {
     return () => window.removeEventListener("folioscope:convert", open);
   }, []);
 
+  // So sánh hai bản (null = đóng; chuỗi = đường dẫn bản cũ gợi ý) và bảng Trợ lý AI.
+  const [compare, setCompare] = useState<{ a: string | null } | null>(null);
+  const closeCompare = useCallback(() => setCompare(null), []);
+  const [aiOpen, setAiOpen] = useState(false);
+  useEffect(() => {
+    const cmp = () => setCompare({ a: useStore.getState().path });
+    const ai = () => setAiOpen((v) => !v);
+    window.addEventListener("folioscope:compare", cmp);
+    window.addEventListener("folioscope:ai", ai);
+    return () => { window.removeEventListener("folioscope:compare", cmp); window.removeEventListener("folioscope:ai", ai); };
+  }, []);
+
   // File đến từ menu chuột phải của Windows (lúc khởi động hoặc khi app đã mở sẵn).
   useEffect(() => {
     const pull = () => takeLaunchFiles().then((f) => { if (f.length) setCombine(f); return f.length; }).catch(() => 0);
@@ -98,7 +112,7 @@ export function App() {
 
   // Kéo thả file vào cửa sổ. Khi hộp thoại Gộp file đang mở thì để nó tự xử lý.
   const combineOpen = useRef(false);
-  combineOpen.current = combine !== null || convert !== null;
+  combineOpen.current = combine !== null || convert !== null || compare !== null;
   const [dragOver, setDragOver] = useState(false);
   useEffect(() => {
     const sub = getCurrentWebview().onDragDropEvent((e) => {
@@ -139,6 +153,7 @@ export function App() {
         <button className="btn secondary" onClick={open}>Mở file…</button>
         <button className="btn secondary" onClick={() => setCombine([])}>Gộp file…</button>
         <button className="btn secondary" onClick={() => setConvert({ files: [], target: "to_pdf" })}>Chuyển đổi / OCR…</button>
+        <button className="btn secondary" onClick={() => setCompare({ a: s.path })}>So sánh…</button>
         <div className="segmented" role="group" aria-label="Công cụ con trỏ">
           <button aria-pressed={s.tool === "select"} onClick={() => s.setTool("select")} title="Chọn chữ">Chọn chữ</button>
           <button aria-pressed={s.tool === "hand"} onClick={() => s.setTool("hand")} title="Kéo trang">Bàn tay</button>
@@ -154,6 +169,7 @@ export function App() {
           ))}
         </div>
         <span className="spacer" />
+        <button className="btn ghost" aria-pressed={aiOpen} onClick={() => setAiOpen((v) => !v)}>Trợ lý AI</button>
         <button className="btn ghost" aria-pressed={s.rightOpen} onClick={() => s.togglePanel("right")}>Thuộc tính</button>
       </div>
 
@@ -187,7 +203,13 @@ export function App() {
           )}
         </main>
 
-        {s.rightOpen && !organizing && (
+        {aiOpen && !organizing && (
+          <>
+            <Resizer side="right" onDrag={(w) => s.dragPanel("right", w)} />
+            <AiPanel width={s.rightWidth} onClose={() => setAiOpen(false)} />
+          </>
+        )}
+        {s.rightOpen && !aiOpen && !organizing && (
           <>
             <Resizer side="right" onDrag={(w) => s.dragPanel("right", w)} />
             <aside className="panel right" style={{ width: s.rightWidth }} aria-label="Thuộc tính">
@@ -233,6 +255,7 @@ export function App() {
       {s.settingsOpen && <Settings />}
       {paletteOpen && <CommandPalette />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
+      {compare && <CompareDialog initialA={compare.a} onClose={closeCompare} />}
       {convert && <ConvertDialog initial={convert.files} initialTarget={convert.target} onClose={closeConvert} onOpenResult={(p) => void s.load(p)} />}
       {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)}
         onOpenInOrganizer={(paths) => void useOrganizer.getState().openFiles(paths)} />}

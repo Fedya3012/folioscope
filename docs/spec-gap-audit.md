@@ -102,8 +102,8 @@ Lưu ý còn nợ từ thiết kế: **mở file PDF có mật khẩu** vẫn ph
 | 1.7 | PDF/A | UI 4E, KT GĐ4 | **Đã làm (Gói G):** PDF/A-2b từ Word/Excel/PowerPoint/ảnh (đáng tin); từ PDF có sẵn thì dựng lại bằng LibreOffice Draw nên bố cục có thể lệch. | M |
 | 1.8 | Tạo PDF từ máy quét, ảnh chụp màn hình, trang web, clipboard, template | UI 4E | **Một phần (Gói G):** chỉ ảnh sang PDF. Còn thiếu máy quét, chụp màn hình, trang web, clipboard, template. | M |
 | 1.9 | **OCR và Scan** (tiếng Việt, Anh; làm thẳng, khử nhiễu; sửa từ nghi ngờ) | UI "OCR và Scan", KT GĐ4 | **Đã làm (Gói G, chưa thử trên Windows thật):** OCR tiếng Việt và Anh bằng Tesseract tải khi cần, cho ảnh, PDF quét và ảnh trong Gộp file. Chưa có làm thẳng/khử nhiễu bằng OpenCV, sửa từ nghi ngờ. Tesseract 5 + OpenCV | L |
-| 1.10 | **So sánh hai bản** (theo chữ và theo hình, cuộn đồng bộ) | UI "So sánh", KT 4.4 | | L |
-| 1.11 | **Trợ lý AI** (tóm tắt, hỏi đáp có trích trang, dịch, viết lại, trích bảng) | UI "AI Assistant", KT 4.5 | Chế độ qua mạng đã chọn; cần nơi lưu khoá API trong kho khoá hệ điều hành | L |
+| 1.10 | **So sánh hai bản** (theo chữ và theo hình, cuộn đồng bộ) | UI "So sánh", KT 4.4 | **Đã làm (Gói I, chưa thử trên Windows thật):** nút "So sánh…", so từng từ và từng điểm ảnh, cuộn đồng bộ, nhảy tới trang khác biệt. Chi tiết: `docs/compare-ai.md`. Chưa ghép trang theo nội dung khi chèn/xoá trang. | L |
+| 1.11 | **Trợ lý AI** (tóm tắt, hỏi đáp có trích trang, dịch, viết lại, trích bảng) | UI "AI Assistant", KT 4.5 | **Đã làm (Gói I, chưa thử với khoá thật):** bảng bên phải, khoá API trong Credential Manager/Keychain, chỉ Anthropic. Chưa có streaming, thanh nổi khi chọn chữ, AI đề xuất mục lục. Chi tiết: `docs/compare-ai.md`. | L |
 | 1.12 | **Command Palette** (`Ctrl+K`) | UI "Command Palette" | Cần danh sách lệnh chung trước | M |
 | 1.13 | **Settings / Preferences** (cửa sổ riêng, tìm kiếm, các nhóm) | UI 4F | Hiện chỉ có nút Sáng/Tối | L |
 | 1.14 | In (xem trước, tập sách, nhiều trang/tờ) | UI "Print", KT GĐ1 | | M |

@@ -1,0 +1,27 @@
+/* Trợ lý AI (bảng bên phải) */
+.panel.ai-panel { display: flex; flex-direction: column; overflow: hidden; }
+.ai-panel h2 { display: flex; align-items: center; justify-content: space-between; padding-right: 4px; }
+.ai-panel .ai-setup { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ai-setup p { margin: 0; }
+.ai-controls { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); }
+.ai-actions { display: flex; gap: 8px; }
+.ai-actions select { flex: 1; min-width: 0; height: 32px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); font: inherit; padding: 0 6px; }
+.ai-actions .btn { flex: none; }
+.ai-log { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.ai-empty { margin: 0; color: var(--text-tertiary); font-size: var(--fs-small); }
+.ai-msg { display: flex; flex-direction: column; gap: 2px; }
+.ai-msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.ai-msg.user p { background: var(--primary-soft); color: var(--primary-soft-text); padding: 6px 10px; border-radius: var(--r-md); }
+.ai-who { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-caption); font-weight: 600; color: var(--text-tertiary); }
+.ai-cite { border: 0; background: var(--primary-soft); color: var(--primary-soft-text); border-radius: 4px; padding: 0 4px; font: inherit; font-size: var(--fs-small); cursor: pointer; }
+.ai-cite:hover { filter: brightness(.95); }
+.ai-ask { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--border-subtle); }
+.ai-ask textarea { resize: none; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); font: inherit; padding: 6px 10px; }
+.ai-ask textarea:focus { outline: 0; border-color: var(--primary); }
+.ai-ask-row { display: flex; align-items: center; gap: 8px; }
+.ai-ask-row .spacer { flex: 1; }
+/* Khoá API trong Cài đặt */
+.set-row:has(.ai-key) { flex-direction: column; align-items: stretch; }
+.ai-key { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ai-key .field { flex: 1 1 180px; width: auto; }
+.ai-key-ok { color: var(--success); font-size: var(--fs-small); font-weight: 600; }
