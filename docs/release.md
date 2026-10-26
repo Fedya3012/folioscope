@@ -30,3 +30,5 @@ Khi có chứng chỉ `.pfx` (mua từ nhà cấp như DigiCert, Sectigo, SSL.co
 
 Nhiều nhà cấp hiện chỉ bán chứng chỉ dạng khoá trên phần cứng hoặc dịch vụ ký trên cloud (Azure Trusted Signing, SSL.com eSigner…); loại đó không có file `.pfx`. Khi đó cần đổi bước ký sang `bundle.windows.signCommand` của Tauri theo hướng dẫn của nhà cấp.
 macOS chưa ký/notarize (cần tài khoản Apple Developer); không ảnh hưởng bản Windows.
+
+Ghi chú kỹ thuật: gói cập nhật (`.sig`, `latest.json`) chỉ được tạo khi build phát hành, qua `src-tauri/tauri.release.conf.json`; CI thường không cần khoá ký.

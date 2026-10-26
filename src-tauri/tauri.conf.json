@@ -43,7 +43,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true,
     "publisher": "Folioscope",
     "windows": {
       "nsis": {

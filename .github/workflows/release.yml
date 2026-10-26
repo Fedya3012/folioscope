@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, args: "" }
-          - { os: macos-latest, args: "" }
-          - { os: ubuntu-24.04, args: "" }
+          - { os: windows-latest, args: "--config src-tauri/tauri.release.conf.json" }
+          - { os: macos-latest, args: "--config src-tauri/tauri.release.conf.json" }
+          - { os: ubuntu-24.04, args: "--config src-tauri/tauri.release.conf.json" }
     runs-on: ${{ matrix.os }}
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
