@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPageTheme, nextPageTheme, passwordFailure, pickDroppedPdf, zoomChoice, fitPageZoom, fitWidthZoom, pageAtScroll, pageOffsets, pageWidthPx, parsePageInput, stepIndex, wheelZoom, PAGE_GAP, PAGE_PAD } from "./viewer";
+import { isPageTheme, nextPageTheme, passwordFailure, zoomChoice, fitPageZoom, fitWidthZoom, pageAtScroll, pageOffsets, pageWidthPx, parsePageInput, stepIndex, wheelZoom, PAGE_GAP, PAGE_PAD } from "./viewer";
 
 const A4: [number, number] = [595, 842];
 
@@ -72,16 +72,6 @@ describe("zoomChoice", () => {
     expect(zoomChoice(1.5, null)).toBe("1.5");
     expect(zoomChoice(1.5001, null)).toBe("1.5");
     expect(zoomChoice(1.37, null)).toBe("custom");
-  });
-});
-
-describe("pickDroppedPdf", () => {
-  it("lấy PDF đầu tiên, không phân biệt hoa thường", () => {
-    expect(pickDroppedPdf(["C:\\a.docx", "C:\\b.PDF", "c.pdf"])).toEqual({ pdf: "C:\\b.PDF", skipped: 2 });
-  });
-  it("không có PDF thì pdf là null", () => {
-    expect(pickDroppedPdf(["a.png"])).toEqual({ pdf: null, skipped: 1 });
-    expect(pickDroppedPdf([])).toEqual({ pdf: null, skipped: 0 });
   });
 });
 

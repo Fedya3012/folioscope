@@ -82,15 +82,6 @@ export function zoomChoice(zoom: number, fit: Fit): string {
   return preset === undefined ? "custom" : String(preset);
 }
 
-// ---- Kéo thả file vào cửa sổ ----
-const hasPdfExt = (p: string) => p.toLowerCase().endsWith(".pdf");
-
-/** Trong các file thả vào, lấy PDF đầu tiên để mở; `skipped` là số file bị bỏ qua (không phải PDF hoặc thừa). */
-export function pickDroppedPdf(paths: string[]): { pdf: string | null; skipped: number } {
-  const pdf = paths.find(hasPdfExt) ?? null;
-  return { pdf, skipped: paths.length - (pdf ? 1 : 0) };
-}
-
 // ---- Mật khẩu ----
 /** Lõi Rust trả đúng hai chuỗi này khi file cần mật khẩu hoặc mật khẩu sai (xem `PdfError` trong pdf.rs). */
 export function passwordFailure(err: unknown): "required" | "wrong" | null {

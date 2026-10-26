@@ -26,7 +26,10 @@ Bấm tab **Trang** (hoặc phím `O`) để xem lưới hình thu nhỏ: kéo t
 
 ## Trình xem: tiện dùng (gói B1)
 - File PDF có mật khẩu: hộp nhập mật khẩu hiện khi mở; mật khẩu chỉ giữ trong bộ nhớ, không ghi ra đĩa (`pdf.rs`).
-- Kéo file PDF từ Explorer thả vào cửa sổ để mở.
 - Thanh điều khiển nổi ở góc dưới phải (trang trước/sau, zoom, chọn chữ, bàn tay), mờ đi sau 2 giây không đụng chuột.
 - Nút ở thanh trạng thái đổi màu nền trang: giấy trắng, đọc ban đêm, sepia.
 - Gộp file với PDF có mật khẩu vẫn chưa hỗ trợ: cần mở khoá trước.
+## Home / Start Screen và Cài đặt
+- Mở app không có file thì vào **Home**: lời chào, vùng kéo thả, 6 thao tác nhanh (Mở file, Tạo PDF, Gộp file đã chạy; Chuyển đổi, Nén, OCR ghi “Sắp có”), danh sách file gần đây (lưới/danh sách, ghim, xoá khỏi danh sách) và băng Templates (chưa có nội dung). Tab Home luôn ghim đầu thanh tab.
+- Thả 1 file PDF vào cửa sổ thì mở; thả nhiều file hoặc Word/ảnh thì vào hộp thoại Gộp file. `Ctrl+O` mở file.
+- **Cài đặt** (`Ctrl+,` hoặc nút bánh răng): chủ đề sáng/tối/theo hệ thống, màu nhấn, cỡ giao diện, mật độ, giảm chuyển động, zoom và bố cục mặc định, số file gần đây, mở lại file cuối khi khởi động. Danh sách file gần đây và cài đặt lưu ở localStorage của WebView.

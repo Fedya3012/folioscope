@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { Resizer } from "./components/Resizer";
@@ -8,9 +8,13 @@ import { SEARCH_INPUT_ID, SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
 import { Viewer } from "./components/Viewer";
 import { CombineDialog } from "./components/CombineDialog";
+import { Home } from "./components/Home";
+import { Icon } from "./components/Icon";
+import { Settings } from "./components/Settings";
+import { routeDrop } from "./lib/recent";
+import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput } from "./lib/viewer";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { ViewControls } from "./components/ViewControls";
-import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput, pickDroppedPdf } from "./lib/viewer";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
 import { pickPdf, takeLaunchFiles } from "./lib/api";
@@ -31,12 +35,27 @@ export function App() {
   useEffect(() => { setPageText(s.info ? String(s.currentPage + 1) : ""); }, [s.currentPage, s.info]);
 
   useEffect(() => { document.documentElement.dataset.theme = s.theme; }, [s.theme]);
+  // Cài đặt giao diện (màu nhấn, cỡ chữ, mật độ, giảm chuyển động) đặt lên thẻ gốc để tokens.css xử lý.
+  const { accent, uiSize, density, reduceMotion } = s.settings;
+  useEffect(() => {
+    const d = document.documentElement.dataset;
+    d.accent = accent; d.size = String(uiSize); d.density = density; d.motion = reduceMotion ? "reduce" : "";
+  }, [accent, uiSize, density, reduceMotion]);
+  // Chủ đề "theo hệ thống" đi theo hệ điều hành ngay cả khi đang chạy.
+  useEffect(() => {
+    const mq = matchMedia("(prefers-color-scheme: dark)");
+    const on = () => s.setSystemDark(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Phím tắt theo bản thiết kế: Ctrl/⌘+\ ẩn hiện panel trái, Ctrl/⌘+Shift+\ panel phải, Ctrl/⌘ +/- zoom.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod && e.key.toLowerCase() === "o" && !(e.target as HTMLElement).closest("input, textarea, [role=dialog]") && s.info) s.setMode("pages");
+      if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); void openRef.current(); }
+      if (mod && e.key === ",") { e.preventDefault(); s.setSettingsOpen(true); }
       if (mod && e.key === "\\") { e.preventDefault(); s.togglePanel(e.shiftKey ? "right" : "left"); }
       if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); s.zoomBy(1); }
       if (mod && e.key === "-") { e.preventDefault(); s.zoomBy(-1); }
@@ -62,49 +81,64 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const openRef = useRef<() => Promise<void>>(async () => {});
   // null = đóng; mảng = mở hộp thoại Gộp file với các file ban đầu này.
   const [combine, setCombine] = useState<string[] | null>(null);
   const closeCombine = useCallback(() => setCombine(null), []);
 
   // File đến từ menu chuột phải của Windows (lúc khởi động hoặc khi app đã mở sẵn).
   useEffect(() => {
-    const pull = () => takeLaunchFiles().then((f) => { if (f.length) setCombine(f); }).catch(() => {});
-    void pull();
-    const sub = listen("launch-combine", pull);
+    const pull = () => takeLaunchFiles().then((f) => { if (f.length) setCombine(f); return f.length; }).catch(() => 0);
+    // Lần đầu: nếu không có file từ menu chuột phải và người dùng chọn "File gần nhất" thì mở lại file đó.
+    void pull().then((n) => {
+      const { settings, recent, load } = useStore.getState();
+      if (!n && settings.startup === "last" && recent[0]) void load(recent[0].path);
+    });
+    const sub = listen("launch-combine", () => void pull());
     return () => { void sub.then((un) => un()); };
   }, []);
 
-  // Kéo file từ Explorer thả vào cửa sổ để mở. Hộp thoại Gộp file tự nhận file thả khi đang mở.
-  const [dragging, setDragging] = useState(false);
-  const combineOpen = combine !== null;
+  // Kéo thả file vào cửa sổ. Khi hộp thoại Gộp file đang mở thì để nó tự xử lý.
+  const combineOpen = useRef(false);
+  combineOpen.current = combine !== null;
+  const [dragOver, setDragOver] = useState(false);
   useEffect(() => {
-    if (combineOpen) return;
     const sub = getCurrentWebview().onDragDropEvent((e) => {
       const t = e.payload.type;
-      if (t === "enter" || t === "over") setDragging(true);
-      else if (t === "leave") setDragging(false);
+      if (combineOpen.current) { setDragOver(false); return; }
+      if (t === "enter" || t === "over") setDragOver(true);
+      else if (t === "leave") setDragOver(false);
       else if (t === "drop") {
-        setDragging(false);
-        const { pdf, skipped } = pickDroppedPdf(e.payload.paths);
-        if (pdf) void s.load(pdf);
-        else if (skipped) useStore.setState({ error: "Chỉ mở được file PDF. Để ghép file khác, dùng nút Gộp file…" });
+        setDragOver(false);
+        const r = routeDrop(e.payload.paths);
+        if (r && "open" in r) void useStore.getState().load(r.open);
+        else if (r) setCombine(r.combine);
       }
     });
-    return () => { void sub.then((un) => un()); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [combineOpen]);
+    return () => { void sub.then((un) => un()).catch(() => {}); };
+  }, []);
 
   const open = async () => { const p = await pickPdf(); if (p) await s.load(p); };
+  openRef.current = open;
+  const onHome = s.view === "home" || !s.info;
   const fileName = s.path?.split(/[\\/]/).pop();
 
   return (
-    <div className="shell">
+    <div className={`shell${onHome ? " on-home" : ""}`}>
       <header className="titlebar">
         <strong>Folioscope</strong>
-        {fileName && <span className="tab">{fileName}</span>}
+        <div className="tabs" role="tablist" aria-label="Tài liệu" style={{ display: "contents" }}>
+          <button role="tab" className="tab home-tab" aria-selected={onHome} aria-label="Home" title="Home" onClick={() => s.setView("home")}><Icon name="home" /></button>
+          {fileName && <button role="tab" className="tab" aria-selected={!onHome} title={s.path ?? undefined} onClick={() => s.setView("doc")}>{fileName}</button>}
+        </div>
         <span className="spacer" />
+        <button className="btn ghost icon" aria-label="Cài đặt (Ctrl+,)" title="Cài đặt (Ctrl+,)" onClick={() => s.setSettingsOpen(true)}><Icon name="settings" /></button>
         <button className="btn ghost icon" aria-label="Đổi giao diện sáng/tối" onClick={s.toggleTheme}>{s.theme === "dark" ? "☀" : "☾"}</button>
       </header>
+
+      {onHome ? (
+        <Home onOpenDialog={open} onOpenPath={(p) => void s.load(p)} onCombine={setCombine} />
+      ) : (<>
 
       <div className="toolbar" role="toolbar" aria-label="Công cụ chính">
         <button className="btn secondary" onClick={open}>Mở file…</button>
@@ -193,8 +227,10 @@ export function App() {
         <span className="zoomlabel">{Math.round(s.zoom * 100)}%</span>
         <button className="btn ghost" onClick={() => s.zoomBy(1)} aria-label="Phóng to">+</button>
       </footer>
-      {dragging && <div className="drop-overlay" aria-hidden="true"><div>Thả để mở</div></div>}
+      </>)}
       <PasswordDialog />
+      {s.settingsOpen && <Settings />}
+      {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
       {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}
     </div>
   );
