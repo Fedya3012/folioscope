@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ACROBAT_PRESET, applyPreset, conflictsFor, resetAllKeys, resetKeys, setKeys } from "../lib/keymap";
 import { comboFromEvent, formatCombo, getKeyOverrides, listCommands, parseCombo } from "../lib/shortcuts";
+import { AI_MODELS } from "../lib/ai";
+import { aiKeyClear, aiKeySet, aiKeyStatus } from "../lib/api";
 import { ACCENTS, RECENT_LIMITS, UI_SIZES, type Settings as S } from "../lib/settings";
 import { toast } from "../lib/toast";
 import { useStore } from "../store";
+import { appVersion, checkForUpdate, explainUpdateError, installUpdate, type UpdateInfo } from "../lib/updater";
 import { Icon } from "./Icon";
 
 type Group = "general" | "appearance" | "display" | "edit" | "convert" | "ai" | "keys" | "account" | "advanced";
@@ -19,6 +22,66 @@ const PLANNED: Partial<Record<Group, string>> = {
   account: "Đăng nhập, thiết bị và kết nối cloud (Google Drive, Dropbox, OneDrive). Folioscope dùng cá nhân và chưa có máy chủ nên mục này để dành; chưa cần gói đăng ký.",
   advanced: "Tăng tốc GPU, bộ nhớ cache, nhật ký lỗi, xuất/nhập cài đặt.",
 };
+
+/** Khoá API của dịch vụ AI: dán vào, lưu vào kho khoá của hệ điều hành; ô này không bao giờ hiện lại khoá đã lưu. */
+function AiKey() {
+  const [saved, setSaved] = useState<boolean | null>(null);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { aiKeyStatus().then(setSaved).catch(() => setSaved(false)); }, []);
+  const save = async () => {
+    setBusy(true);
+    try { await aiKeySet(text); setText(""); setSaved(true); toast.success("Đã lưu khoá API"); }
+    catch (e) { toast.error(String(e)); }
+    finally { setBusy(false); }
+  };
+  const clear = async () => {
+    try { await aiKeyClear(); setSaved(false); toast.success("Đã xoá khoá API khỏi máy"); } catch (e) { toast.error(String(e)); }
+  };
+  return (
+    <div className="ai-key">
+      {saved && <span className="ai-key-ok">Đã lưu khoá</span>}
+      <input type="password" className="field" autoComplete="off" spellCheck={false} value={text} aria-label="Khoá API Anthropic"
+        placeholder={saved ? "Dán khoá mới để thay" : "Dán khoá API (sk-ant-…)"} onChange={(e) => setText(e.target.value)} />
+      <button className="btn primary" disabled={busy || !text.trim()} onClick={() => void save()}>Lưu</button>
+      {saved && <button className="btn ghost danger-text" onClick={() => void clear()}>Xoá khoá</button>}
+    </div>
+  );
+}
+
+/** Phiên bản hiện tại, nút kiểm tra bản mới, cài và khởi động lại. */
+function UpdateControl() {
+  const [ver, setVer] = useState("");
+  const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [state, setState] = useState<"idle" | "checking" | "none" | "installing">("idle");
+  const [frac, setFrac] = useState<number | null>(0);
+  useEffect(() => { appVersion().then(setVer).catch(() => {}); }, []);
+  const run = async () => {
+    setState("checking");
+    try {
+      const u = await checkForUpdate();
+      setInfo(u);
+      setState(u ? "idle" : "none");
+    } catch (e) { setState("idle"); toast.error(explainUpdateError(e)); }
+  };
+  const install = async () => {
+    if (!info) return;
+    setState("installing"); setFrac(0);
+    try { await installUpdate(info, setFrac); }
+    catch (e) { setState("idle"); toast.error(`Cài bản mới không thành công: ${String(e)}`); }
+  };
+  return (
+    <div className="ai-key">
+      <span>Bản {ver || "…"}</span>
+      {state === "none" && <span className="ai-key-ok">Đang dùng bản mới nhất</span>}
+      {info && state !== "installing" && <span className="ai-key-ok">Có bản {info.version}</span>}
+      {state === "installing" && <span>Đang tải {frac == null ? "…" : `${Math.round(frac * 100)}%`}, xong sẽ tự mở lại</span>}
+      {info
+        ? <button className="btn primary" disabled={state === "installing"} onClick={() => void install()}>Cài và mở lại</button>
+        : <button className="btn" disabled={state === "checking"} onClick={() => void run()}>{state === "checking" ? "Đang kiểm tra…" : "Kiểm tra bản mới"}</button>}
+    </div>
+  );
+}
 
 /** Bảng phím tắt: ghi phím mới, cảnh báo trùng, khôi phục mặc định, bộ "Giống Acrobat". */
 function KeyMap() {
@@ -134,6 +197,11 @@ export function Settings() {
     { id: "recent", group: "general", label: "Số file gần đây", desc: "File đã ghim không bị tính vào giới hạn.", keywords: "gần đây lịch sử",
       control: <Seg label="Số file gần đây" value={st.recentLimit} onChange={(recentLimit) => set({ recentLimit })} options={RECENT_LIMITS.map((n) => [n, String(n)] as [number, string])} /> },
 
+    { id: "update", group: "general", label: "Cập nhật Folioscope", desc: "Kiểm tra trên GitHub xem có bản mới không. File của bạn không bị đụng tới khi cập nhật.", keywords: "cập nhật update nâng cấp phiên bản version",
+      control: <UpdateControl /> },
+    { id: "autoupdate", group: "general", label: "Tự kiểm tra bản mới", desc: "Mỗi lần mở app, hỏi xem có bản mới không và báo bằng một thông báo nhỏ. Không tự cài.", keywords: "cập nhật tự động update",
+      control: <Toggle label="Tự kiểm tra bản mới" on={st.autoCheckUpdate} onChange={(autoCheckUpdate) => set({ autoCheckUpdate })} /> },
+
     { id: "theme", group: "appearance", label: "Chủ đề", desc: "Sáng, tối, hoặc đi theo hệ điều hành.", keywords: "theme sáng tối dark light",
       control: <ThemeCards value={st.theme} onChange={(theme) => set({ theme })} /> },
     { id: "accent", group: "appearance", label: "Màu nhấn", desc: "Màu của nút chính, vùng chọn và vòng focus.", keywords: "accent màu",
@@ -174,6 +242,10 @@ export function Settings() {
 
     { id: "aion", group: "ai", label: "Bật AI Assistant", desc: "Gửi câu hỏi qua mạng tới dịch vụ AI. Đang tắt thì không có gì rời khỏi máy.", keywords: "ai trợ lý bật tắt",
       control: <Toggle label="Bật AI Assistant" on={st.aiEnabled} onChange={(aiEnabled) => set({ aiEnabled })} /> },
+    { id: "aikey", group: "ai", label: "Khoá API (Anthropic)", desc: "Lấy khoá tại console.anthropic.com. Khoá lưu trong kho khoá của hệ điều hành (Windows: Credential Manager), không nằm trong file cài đặt. Tính tiền theo tài khoản của bạn.", keywords: "api key khoá anthropic claude",
+      control: <AiKey /> },
+    { id: "aimodel", group: "ai", label: "Mô hình", desc: "Mô hình mạnh hơn trả lời kỹ hơn nhưng chậm và tốn tiền hơn.", keywords: "model sonnet haiku opus",
+      control: <Seg label="Mô hình" value={st.aiModel} onChange={(aiModel) => set({ aiModel })} options={AI_MODELS} /> },
     { id: "aimode", group: "ai", label: "Nơi xử lý", desc: "AI chạy trên cloud. Chế độ chạy ngay trên máy chưa có.", keywords: "cloud máy local",
       control: <Seg label="Nơi xử lý" value={"cloud"} onChange={() => {}} options={[["cloud", "Cloud (qua mạng)"]]} /> },
     { id: "airedact", group: "ai", label: "Không gửi nội dung nhạy cảm", desc: "Che số thẻ, CMND/CCCD và email trước khi gửi.", keywords: "riêng tư bảo mật nhạy cảm",

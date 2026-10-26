@@ -19,12 +19,53 @@
         "minHeight": 480
       }
     ],
-    "security": { "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" }
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+    }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
-    "resources": ["pdfium/*"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+    "targets": [
+      "nsis",
+      "msi",
+      "dmg",
+      "app",
+      "deb",
+      "appimage"
+    ],
+    "resources": [
+      "pdfium/*"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Folioscope",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMxRjc4MzRDODQ4QUI4RjcKUldUM3VJcUVUSVAzd1FhVGJtV1RBUnQ1MnpnS1FvdGQ2dktxY0pIMFNNQ0ZUQXo0SXVIV1ZqWGUK",
+      "endpoints": [
+        "https://github.com/Fedya3012/folioscope/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

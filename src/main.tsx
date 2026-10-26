@@ -8,6 +8,8 @@ import "./styles/annotations.css";
 import "./styles/home.css";
 import "./styles/settings.css";
 import "./styles/toast.css";
+import "./styles/compare.css";
+import "./styles/ai.css";
 
 // Nạp cài đặt và danh sách file gần đây từ SQLite trước khi các store khởi tạo (App được nạp sau để store đọc được dữ liệu).
 void initDb()

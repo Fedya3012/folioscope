@@ -1,3 +1,4 @@
+import { AI_MODELS, DEFAULT_AI_MODEL } from "./ai";
 import type { Fit, ViewMode } from "./viewer";
 
 export type ThemePref = "light" | "dark" | "system";
@@ -13,6 +14,8 @@ export type OcrQuality = "fast" | "balanced" | "best";
 
 export type Settings = {
   userName: string;
+  /** Tự hỏi bản mới mỗi lần mở app (chỉ hỏi, không tự cài). */
+  autoCheckUpdate: boolean;
   startup: Startup;
   recentLimit: number;
   theme: ThemePref;
@@ -33,17 +36,19 @@ export type Settings = {
   ocrDeskew: boolean;
   /** AI Assistant (qua mạng) */
   aiEnabled: boolean;
+  /** Mô hình AI dùng khi hỏi đáp (khoá API nằm trong kho khoá hệ điều hành, không ở đây). */
+  aiModel: string;
   aiRedactSensitive: boolean;
   aiKeepHistory: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  userName: "", startup: "home", recentLimit: 20,
+  userName: "", autoCheckUpdate: true, startup: "home", recentLimit: 20,
   theme: "system", accent: "cobalt", uiSize: 13, density: "comfortable", reduceMotion: false,
   defaultZoom: "width", defaultViewMode: "continuous",
   authorName: "", unit: "mm", snapToGrid: false, autoOpenComments: true,
   ocrLang: "vie+eng", ocrQuality: "balanced", ocrDeskew: true,
-  aiEnabled: false, aiRedactSensitive: true, aiKeepHistory: true,
+  aiEnabled: false, aiModel: DEFAULT_AI_MODEL, aiRedactSensitive: true, aiKeepHistory: true,
 };
 
 export const ACCENTS: { id: Accent; label: string; swatch: string }[] = [
@@ -69,6 +74,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   const d = DEFAULT_SETTINGS;
   return {
     userName: typeof r.userName === "string" ? r.userName.slice(0, 60) : d.userName,
+    autoCheckUpdate: bool(r.autoCheckUpdate, d.autoCheckUpdate),
     startup: oneOf(r.startup, ["home", "last"] as const, d.startup),
     recentLimit: oneOf(r.recentLimit, RECENT_LIMITS, d.recentLimit),
     theme: oneOf(r.theme, ["light", "dark", "system"] as const, d.theme),
@@ -86,6 +92,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     ocrQuality: oneOf(r.ocrQuality, ["fast", "balanced", "best"] as const, d.ocrQuality),
     ocrDeskew: bool(r.ocrDeskew, d.ocrDeskew),
     aiEnabled: bool(r.aiEnabled, d.aiEnabled),
+    aiModel: oneOf(r.aiModel, AI_MODELS.map(([id]) => id), d.aiModel),
     aiRedactSensitive: bool(r.aiRedactSensitive, d.aiRedactSensitive),
     aiKeepHistory: bool(r.aiKeepHistory, d.aiKeepHistory),
   };
