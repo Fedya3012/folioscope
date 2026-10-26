@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkCrop, chunkByBytes, gapAt, estimatePageBytes, clearNumbers, croppedSize, cropItems, groupsByBookmarks, numberItems, numberLabel,
+  parseSingleRange, replaceItems, rotateCrop,
   chunkEvery, displaySize, dropIndex, insertItems, moveItems, parseRanges, partName, pushHistory,
   rangeIds, redoHistory, removeItems, reverseItems, rotateItems, splitFileName, undoHistory,
   type PageItem, type Rect,
@@ -121,5 +123,107 @@ describe("lịch sử hoàn tác", () => {
   });
   it("không hoàn tác được khi chưa có gì", () => {
     expect(undoHistory({ past: [], future: [] }, mk(1))).toBeNull();
+  });
+});
+
+describe("cắt lề", () => {
+  const c = { l: 10, t: 20, r: 30, b: 40 };
+  it("đặt và bỏ lề cho trang đã chọn", () => {
+    const cropped = cropItems(mk(3), set("p2"), c);
+    expect(cropped[1].crop).toEqual(c);
+    expect(cropped[0].crop).toBeUndefined();
+    expect(croppedSize(cropped[1])).toEqual([555, 782]);
+    expect(cropItems(cropped, set("p2"), null)[1].crop).toBeUndefined();
+    expect(cropItems(cropped, set("p2"), { l: 0, t: 0, r: 0, b: 0 })[1].crop).toBeUndefined();
+  });
+  it("xoay trang thì lề đi theo các cạnh", () => {
+    // xoay phải: cạnh trái thành cạnh trên, cạnh trên thành cạnh phải...
+    expect(rotateCrop(c, 90)).toEqual({ l: 40, t: 10, r: 20, b: 30 });
+    expect(rotateCrop(c, 360)).toEqual(c);
+    expect(rotateCrop(rotateCrop(c, 90), -90)).toEqual(c);
+    const r = rotateItems(cropItems(mk(1), set("p1"), c), set("p1"), 90);
+    expect(r[0].crop).toEqual({ l: 40, t: 10, r: 20, b: 30 });
+  });
+  it("không cho cắt hết trang hoặc nhập số âm", () => {
+    expect(checkCrop(mk(1), set("p1"), c)).toBeNull();
+    expect(checkCrop(mk(1), set("p1"), { l: 300, t: 0, r: 300, b: 0 })).toMatch(/quá lớn/);
+    expect(checkCrop(mk(1), set("p1"), { l: -1, t: 0, r: 0, b: 0 })).toMatch(/không âm/);
+    expect(checkCrop(mk(1), set("p1"), { l: Number.NaN, t: 0, r: 0, b: 0 })).toMatch(/không âm/);
+  });
+});
+
+describe("đánh số trang", () => {
+  const spec = { format: "n" as const, start: 1, pos: "bc" as const, size: 10, marginMm: 10 };
+  it("đánh số cả tài liệu khi không chọn trang nào", () => {
+    const out = numberItems(mk(3), set(), { ...spec, start: 5, format: "n-tren-tong" });
+    expect(out.map((p) => p.stamp?.text)).toEqual(["5 / 7", "6 / 7", "7 / 7"]);
+    expect(out[0].stamp?.margin).toBeCloseTo(28.35, 1);
+  });
+  it("chỉ đánh số trang đã chọn, theo thứ tự hiện tại", () => {
+    const out = numberItems(mk(4), set("p4", "p2"), { ...spec, format: "trang-n" });
+    expect(out.map((p) => p.stamp?.text)).toEqual([undefined, "Trang 1", undefined, "Trang 2"]);
+  });
+  it("gỡ số trang", () => {
+    const numbered = numberItems(mk(3), set(), spec);
+    expect(clearNumbers(numbered, set("p1"))[0].stamp).toBeUndefined();
+    expect(clearNumbers(numbered, set("p1"))[1].stamp).toBeDefined();
+    expect(clearNumbers(numbered, set()).every((p) => !p.stamp)).toBe(true);
+  });
+  it("định dạng nhãn", () => {
+    expect([numberLabel("n", 3, 9), numberLabel("trang-n", 3, 9), numberLabel("n-tren-tong", 3, 9)]).toEqual(["3", "Trang 3", "3 / 9"]);
+  });
+});
+
+describe("thay trang, tách theo dấu trang và dung lượng", () => {
+  it("thay trang đặt trang mới đúng chỗ trang đầu bị thay", () => {
+    const added = [{ ...mk(1)[0], id: "n1" }, { ...mk(1)[0], id: "n2" }];
+    expect(ids(replaceItems(mk(5), set("p2", "p3"), added))).toBe("p1,n1,n2,p4,p5");
+    expect(ids(replaceItems(mk(5), set("p5"), added.slice(0, 1)))).toBe("p1,p2,p3,p4,n1");
+    expect(ids(replaceItems(mk(3), set("zz"), added))).toBe("p1,p2,p3");
+  });
+  it("đọc khoảng trang nguồn", () => {
+    expect(parseSingleRange("2-4", 10)).toEqual([1, 2, 3]);
+    expect(parseSingleRange("", 3)).toEqual([0, 1, 2]);
+    expect(() => parseSingleRange("9", 3)).toThrow();
+  });
+  it("tách theo dấu trang: mỗi dấu trang mở một nhóm, trang đầu luôn mở nhóm", () => {
+    expect(groupsByBookmarks(mk(7), "a.pdf", new Set([0, 3, 5]))).toEqual([[0, 1, 2], [3, 4], [5, 6]]);
+    expect(groupsByBookmarks(mk(4), "a.pdf", new Set([2]))).toEqual([[0, 1], [2, 3]]);
+    // trang từ file khác không bị coi là đích dấu trang của file gốc
+    const mixed = [...mk(2), { ...mk(1)[0], id: "x", source: "b.pdf", index: 0 }];
+    expect(groupsByBookmarks(mixed, "a.pdf", new Set([0]))).toEqual([[0, 1, 2]]);
+  });
+  it("tách theo dung lượng: gom trang tới khi vượt giới hạn, tối thiểu một trang mỗi file", () => {
+    const mb = 1_000_000;
+    expect(chunkByBytes([1, 1, 1, 1, 1, 1, 1, 1, 1, 1].map((n) => n * mb), 3 * mb)).toEqual([[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]]);
+    // trang nặng nằm riêng, kể cả khi tự nó vượt giới hạn
+    expect(chunkByBytes([1 * mb, 5 * mb, 1 * mb], 2 * mb)).toEqual([[0], [1], [2]]);
+    expect(chunkByBytes([], mb)).toEqual([]);
+    expect(() => chunkByBytes([1], 0)).toThrow();
+  });
+  it("ước lượng dung lượng trang", () => {
+    const [p] = mk(1);
+    expect(estimatePageBytes(p, { bytes: 1000, pages: 10 })).toBe(100);
+    expect(estimatePageBytes({ ...p, source: null }, undefined)).toBe(1024);
+  });
+});
+
+describe("khe giữa các trang (nút +)", () => {
+  // hai hàng, mỗi hàng 2 ô rộng 100, cách nhau 24; hàng 2 cách hàng 1 32
+  const r = (left: number, top: number): Rect => ({ left, top, right: left + 100, bottom: top + 130 });
+  const rects = [r(32, 32), r(156, 32), r(32, 194), r(156, 194)];
+  it("chỉ hiện khi con trỏ gần khe, trả đúng vị trí chèn", () => {
+    expect(gapAt(rects, 144, 90)).toEqual({ at: 1, x: 144, y: 97 }); // giữa ô 1 và ô 2
+    expect(gapAt(rects, 150, 90)?.at).toBe(1);
+    expect(gapAt(rects, 80, 90)).toBeNull(); // giữa thân trang thì không
+  });
+  it("khe đầu hàng và sau trang cuối", () => {
+    expect(gapAt(rects, 20, 250)).toEqual({ at: 2, x: 20, y: 259 }); // đầu hàng 2
+    expect(gapAt(rects, 268, 250)?.at).toBe(4); // sau trang cuối
+    expect(gapAt(rects, 20, 90)?.at).toBe(0);
+  });
+  it("ngoài khoảng cao của hàng thì không có khe; danh sách rỗng", () => {
+    expect(gapAt(rects, 144, 170)).toBeNull();
+    expect(gapAt([], 10, 10)).toBeNull();
   });
 });

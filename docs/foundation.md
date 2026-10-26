@@ -20,6 +20,17 @@
 - Tính năng đã có lịch sử riêng: `registerUndoScope({ active, canUndo, canRedo, undo, redo })` (Trang và Ghi chú đã đăng ký, theo chế độ đang mở).
 - Tính năng mới: sau mỗi thao tác gọi `pushUndo({ label, undo, redo })`. Ngăn xếp chung chỉ nhận phím khi không có phạm vi nào đang hoạt động.
 
+## Cài đặt mở rộng, phím tắt tuỳ chỉnh, Bảng lệnh (Gói D)
+- Cài đặt có thêm nhóm Chỉnh sửa, OCR, AI (các giá trị đã lưu trong `Settings`, nhưng chức năng tương ứng sẽ đọc chúng ở các gói sau), Phím tắt, Tài khoản (ghi "Sắp có").
+- Phím tuỳ chỉnh lưu ở khoá `folioscope.keymap` ({ idLệnh: [phím] }). `src/lib/keymap.ts` đọc/ghi, `shortcuts.ts` giữ bộ ghi đè nên `registerCommands` luôn dùng phím đã đổi; `listCommands()` trả phím đang có hiệu lực. Lệnh mới chỉ cần đăng ký như cũ là tự xuất hiện trong bảng Phím tắt và Bảng lệnh.
+- Bảng lệnh (Ctrl+Shift+P): `src/components/CommandPalette.tsx`, tìm mờ không cần dấu (`src/lib/palette.ts`). Lệnh có `when` trả false thì không hiện.
+## Nhiều tab tài liệu (Gói C)
+- `useStore.tabs` là danh sách đường dẫn các tài liệu đang mở; `path` là tab đang chọn, Home luôn ghim đầu và không nằm trong `tabs`. Mở file đã có tab thì chỉ chuyển sang tab đó.
+- Mỗi tab có trạng thái riêng (trang, zoom, kiểu xem, chế độ, mục lục, ghi chú, danh sách trang). Khi rời tab, `capture()` trong `src/store.ts` cất trạng thái đó cùng với `useAnnot` và `useOrganizer`; khi quay lại, `restore()` nạp lại. Tính năng mới có state theo tài liệu cần được thêm vào hai hàm này.
+- `isDirty(path)` cho biết tab có thay đổi chưa lưu (hiện chấm trên tab và hỏi trước khi đóng). Tính năng mới có thay đổi chưa lưu nên đưa vào đây.
+- Vị trí đọc lần cuối của từng file (trang, zoom, kiểu xem) lưu ở khoá `folioscope.positions`, tối đa 200 file.
+- Phím tắt: `Ctrl+W` đóng tab, `Ctrl+Tab` / `Ctrl+Shift+Tab` chuyển tab.
+
 ## Ghi chú (Gói F)
 - `src/annotations/snap.ts`: kéo chuột trên chữ → các hình chữ nhật bám từng dòng (dùng `getTextRuns` của Viewer, không sửa Viewer). Trang ảnh quét không có lớp chữ thì dùng khung tự do.
 - `src/annotations/measure.ts`: đo khoảng cách, chu vi, diện tích theo kích thước trang (điểm PDF) và tỉ lệ (`folioscope.measureScale`).

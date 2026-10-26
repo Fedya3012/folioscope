@@ -16,22 +16,42 @@ export async function pickPdf(): Promise<string | null> {
 
 // ---- Gộp file ----
 export type FileKind = "pdf" | "image" | "office" | "unsupported";
-export type FileProbe = { path: string; name: string; kind: FileKind; size: number; pages: number | null; error: string | null };
+export type FileProbe = {
+  path: string; name: string; kind: FileKind; size: number; pages: number | null; error: string | null;
+  /** PDF có mật khẩu (chưa nhập hoặc nhập sai). */
+  needs_password: boolean;
+};
 export type CompressionLevel = "none" | "balanced" | "max";
 export type CombineRequest = {
-  files: { path: string; title: string }[];
+  files: { path: string; title: string; password?: string | null }[];
   output: string;
   bookmarks: boolean;
+  /** Giữ dấu trang gốc của từng PDF. */
+  keep_bookmarks: boolean;
+  /** Đưa mọi trang về khổ A4. */
+  normalize_a4: boolean;
   compression: CompressionLevel;
 };
 export type CombineProgress = { stage: "convert" | "merge" | "optimize" | "write"; current: number; total: number; file: string | null; percent: number };
 export type CombineResult = { output: string; pages: number; bytes: number; converted: number };
 export type MenuStatus = { supported: boolean; installed: boolean };
 
-export const probeFiles = (paths: string[]) => invoke<FileProbe[]>("probe_files", { paths });
+export const probeFiles = (paths: string[], password?: string) =>
+  invoke<FileProbe[]>("probe_files", { paths, password: password ?? null });
 export const officeStatus = () => invoke<string | null>("office_status");
 export const combineFiles = (request: CombineRequest) => invoke<CombineResult>("combine_files", { request });
 export const cancelCombine = () => invoke<void>("cancel_combine");
+
+// ---- Bộ chuyển đổi Office (LibreOffice tải khi cần) ----
+export type OfficeProgress = { stage: "find" | "download" | "verify" | "extract" | "done"; percent: number | null; downloaded: number; total: number };
+export const officeInstallSupported = () => invoke<boolean>("office_install_supported");
+export const officeInstall = () => invoke<string>("office_install");
+export const officeInstallCancel = () => invoke<void>("office_install_cancel");
+
+/** Đưa file về PDF để chèn vào tài liệu (PDF giữ nguyên; ảnh, Word, Excel, PowerPoint được chuyển). Lỗi `OFFICE_MISSING` = cần cài LibreOffice. */
+export const preparePdf = (path: string) => invoke<string>("prepare_pdf", { path });
+export const saveClipboardImage = (pngBase64: string) => invoke<string>("save_clipboard_image", { pngBase64 });
+export const fileSize = (path: string) => invoke<number>("file_size", { path });
 export const takeLaunchFiles = () => invoke<string[]>("take_launch_files");
 export const shellMenuStatus = () => invoke<MenuStatus>("shell_menu_status");
 export const shellMenuInstall = () => invoke<void>("shell_menu_install");
@@ -57,7 +77,12 @@ export async function pickCombineOutput(defaultPath: string): Promise<string | n
   return save({ defaultPath, filters: [{ name: "PDF", extensions: ["pdf"] }] });
 }
 /** Một trang của tài liệu kết quả khi ghi file (khớp `PageRef` ở Rust). */
-export type PageRef = { source: string | null; index: number; rotate: number; width: number; height: number };
+export type PageRef = {
+  source: string | null; index: number; rotate: number; width: number; height: number;
+  /** Cắt lề [trái, trên, phải, dưới] (pt). */
+  crop: [number, number, number, number] | null;
+  stamp: { text: string; pos: string; size: number; margin: number } | null;
+};
 
 export const exportPages = (pages: PageRef[], output: string) =>
   invoke<number>("export_pages", { pages, output });

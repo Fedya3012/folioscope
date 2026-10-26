@@ -1,6 +1,8 @@
 import { SEARCH_INPUT_ID } from "./components/SearchPanel";
 import { registerCommands, type Command } from "./lib/shortcuts";
+import { cycleTab } from "./lib/tabs";
 import { redo, registerUndoScope, undo } from "./lib/undo";
+import { usePalette } from "./lib/paletteStore";
 import { useAnnot } from "./annotations/store";
 import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
@@ -15,9 +17,16 @@ export function registerAppCommands(openFile: () => void): () => void {
   const go = (i: number) => st().goToPage(Math.max(0, Math.min(lastPage(), i)));
   const single = () => st().viewMode === "single";
 
+  const cycle = (dir: 1 | -1) => { const p = cycleTab(st().tabs, st().path, dir); if (p) st().activateTab(p); };
+
   const cmds: Command[] = [
     { id: "file.open", label: "Mở file…", group: "Tệp", keys: ["Mod+O"], typing: "allow", run: openFile },
+    { id: "tab.close", label: "Đóng tab", group: "Tệp", keys: ["Mod+W"], typing: "allow", when: () => !!st().path, run: () => st().closeTab(st().path!) },
+    { id: "tab.next", label: "Tab sau", group: "Tệp", keys: ["Mod+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(1) },
+    { id: "tab.prev", label: "Tab trước", group: "Tệp", keys: ["Mod+Shift+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(-1) },
     { id: "settings.open", label: "Cài đặt", group: "Ứng dụng", keys: ["Mod+,"], typing: "allow", run: () => st().setSettingsOpen(true) },
+    { id: "palette.open", label: "Bảng lệnh", group: "Ứng dụng", keys: ["Mod+Shift+P"], typing: "allow", run: () => usePalette.getState().setOpen(true) },
+    { id: "theme.toggle", label: "Đổi chủ đề sáng/tối", group: "Giao diện", keys: [], typing: "allow", run: () => st().toggleTheme() },
     { id: "panel.left", label: "Ẩn/hiện bảng trái", group: "Giao diện", keys: ["Mod+\\", "F4"], typing: "allow", run: () => st().togglePanel("left") },
     { id: "panel.right", label: "Ẩn/hiện bảng phải", group: "Giao diện", keys: ["Mod+Shift+\\"], typing: "allow", run: () => st().togglePanel("right") },
     { id: "view.zoomIn", label: "Phóng to", group: "Xem", keys: ["Mod+=", "Mod++"], typing: "allow", run: () => st().zoomBy(1) },

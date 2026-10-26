@@ -1,63 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useStore } from "../store";
 import { registerCommands } from "../lib/shortcuts";
 import { toast } from "../lib/toast";
-import { useOrganizer } from "../organizerStore";
-import { bucketFor, cachedThumb, requestThumb } from "../lib/thumbs";
-import { displaySize, dropIndex, intersects, type PageItem, type Rect } from "../lib/organizer";
+import { useOrganizer, type InsertSource } from "../organizerStore";
+import { bucketFor, cachedThumb } from "../lib/thumbs";
+import { dropIndex, gapAt, intersects, type PageItem, type Rect } from "../lib/organizer";
+import { CropShade, StampBadge, Thumb, tileBox } from "./PageThumb";
+import { CropDialog, NumberDialog, ReplaceDialog, SplitDialog } from "./OrganizerDialogs";
 
 const THUMB_MIN = 96;
 const THUMB_MAX = 360;
 const GROUP_COLORS = ["#3D63EE", "#1F9D61", "#F5B700", "#DC3B3B", "#6B5BD6", "#1F7FC4"];
-
-/** Khung hiển thị của một ô: luôn rộng bằng cỡ thumbnail, trang ngang thì thấp hơn. */
-function tileBox(p: PageItem, thumb: number): [number, number] {
-  const [dw, dh] = displaySize(p);
-  const scale = Math.min(thumb / dw, (thumb * 1.33) / dh);
-  return [Math.round(dw * scale), Math.round(dh * scale)];
-}
-
-function Thumb({ item, bw, bh }: { item: PageItem; bw: number; bh: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [src, setSrc] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  // ảnh luôn vẽ theo chiều gốc rồi xoay bằng CSS, nên chiều của ảnh đổi chỗ khi xoay 90/270
-  const turned = item.rot % 180 !== 0;
-  const iw = turned ? bh : bw;
-  const ih = turned ? bw : bh;
-  const px = bucketFor(Math.round(iw * Math.min(window.devicePixelRatio || 1, 2)));
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node || visible) return;
-    const io = new IntersectionObserver(
-      (e) => { if (e[0].isIntersecting) { setVisible(true); io.disconnect(); } },
-      { rootMargin: "500px 0px" },
-    );
-    io.observe(node);
-    return () => io.disconnect();
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible || item.source === null) return;
-    setFailed(false);
-    return requestThumb(item.source, item.index, px, setSrc, () => setFailed(true));
-  }, [visible, item.source, item.index, px]);
-
-  return (
-    <div ref={ref} className={`othumb${src || item.source === null ? "" : " loading"}`} style={{ width: bw, height: bh }}>
-      {src && (
-        <img
-          src={src} width={iw} height={ih} draggable={false}
-          alt={`Trang ${item.index + 1}`}
-          style={{ transform: `translate(-50%, -50%) rotate(${item.rot}deg)` }}
-        />
-      )}
-      {failed && <span className="ofail">Không vẽ được</span>}
-    </div>
-  );
-}
 
 type Drag = { ids: string[]; x: number; y: number; insertAt: number | null };
 type Marquee = { x0: number; y0: number; x1: number; y1: number };
@@ -79,7 +33,12 @@ export function Organizer() {
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [indicator, setIndicator] = useState<{ left: number; top: number; height: number } | null>(null);
   const [menu, setMenu] = useState(false);
-  const [splitOpen, setSplitOpen] = useState(false);
+  const [dialog, setDialog] = useState<"split" | "crop" | "number" | "replace" | null>(null);
+  /** Khe đang được trỏ tới (hiện nút "+") và menu chèn của khe đó. */
+  const [plus, setPlus] = useState<{ at: number; x: number; y: number } | null>(null);
+  const [plusMenu, setPlusMenu] = useState(false);
+  /** Đang kéo file từ Explorer qua lưới. */
+  const [fileOver, setFileOver] = useState(false);
 
   const dirty = o.history.past.length > 0;
   const groupOf = useMemo(() => {
@@ -95,14 +54,8 @@ export function Organizer() {
     return { rects, origin: g.getBoundingClientRect() };
   }, []);
 
-  /** Tính vị trí thả và vạch chèn tại toạ độ con trỏ. */
-  const aim = useCallback((x: number, y: number) => {
-    const t = tileRects();
-    if (!t || !dragRef.current) return;
-    const at = dropIndex(t.rects, x, y);
-    dragRef.current = { ...dragRef.current, x, y, insertAt: at };
-    setDrag(dragRef.current);
-    const { rects, origin } = t;
+  /** Đặt vạch chèn tại vị trí `at` (trước trang `at`). */
+  const placeIndicator = useCallback((at: number, rects: Rect[], origin: DOMRect) => {
     if (rects.length === 0) { setIndicator(null); return; }
     const prev = rects[at - 1];
     const next = rects[at];
@@ -114,7 +67,17 @@ export function Organizer() {
       top: r.top - origin.top,
       height: r.bottom - r.top,
     });
-  }, [tileRects]);
+  }, []);
+
+  /** Tính vị trí thả và vạch chèn tại toạ độ con trỏ. */
+  const aim = useCallback((x: number, y: number) => {
+    const t = tileRects();
+    if (!t || !dragRef.current) return;
+    const at = dropIndex(t.rects, x, y);
+    dragRef.current = { ...dragRef.current, x, y, insertAt: at };
+    setDrag(dragRef.current);
+    placeIndicator(at, t.rects, t.origin);
+  }, [tileRects, placeIndicator]);
 
   // Cuộn lưới khi kéo sát mép trên/dưới, càng sát càng nhanh.
   useEffect(() => {
@@ -227,6 +190,49 @@ export function Organizer() {
     { id: "pages.clearSelection", label: "Bỏ chọn", group: "Trang", keys: ["Escape"], run: () => { o.clearSelection(); return false; } },
   ]), [o]);
 
+  // Kéo file từ Explorer vào lưới: vạch xanh chỉ chỗ chèn, thả để chèn đúng chỗ đó.
+  useEffect(() => {
+    const sub = getCurrentWebview().onDragDropEvent((e) => {
+      const p = e.payload;
+      if (p.type === "leave") { setFileOver(false); setIndicator(null); return; }
+      const t = tileRects();
+      const ratio = window.devicePixelRatio || 1;
+      const at = t ? dropIndex(t.rects, p.position.x / ratio, p.position.y / ratio) : useOrganizer.getState().items.length;
+      if (p.type === "drop") {
+        setFileOver(false);
+        setIndicator(null);
+        void useOrganizer.getState().insertFiles(p.paths, at);
+      } else {
+        setFileOver(true);
+        if (t) placeIndicator(at, t.rects, t.origin);
+      }
+    });
+    return () => { void sub.then((un) => un()).catch(() => {}); };
+  }, [tileRects, placeIndicator]);
+
+  // Ctrl+V: dán ảnh từ clipboard thành trang mới (ngay sau trang đang chọn).
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
+      const img = Array.from(e.clipboardData?.files ?? []).find((f) => f.type.startsWith("image/"));
+      if (!img) return;
+      e.preventDefault();
+      void useOrganizer.getState().insertClipboardImage(img);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, []);
+
+  /** Nút "+" hiện khi con trỏ tới gần khe giữa hai trang. */
+  const onGridMove = (e: React.PointerEvent) => {
+    if (dragRef.current || plusMenu || e.buttons) return;
+    const t = tileRects();
+    if (!t) return;
+    const rel = t.rects.map((r) => ({ left: r.left - t.origin.left, top: r.top - t.origin.top, right: r.right - t.origin.left, bottom: r.bottom - t.origin.top }));
+    setPlus(gapAt(rel, e.clientX - t.origin.left, e.clientY - t.origin.top));
+  };
+
   const onSave = async () => {
     const out = await o.save();
     if (!out) return;
@@ -261,20 +267,20 @@ export function Organizer() {
           {menu && (
             <>
               <div className="org-backdrop" onClick={() => setMenu(false)} />
-              <div className="org-popover" role="menu">
-                <button role="menuitem" onClick={() => { setMenu(false); o.insertBlank(); }}>Trang trắng</button>
-                <button role="menuitem" onClick={() => { setMenu(false); void o.insertFromFile(); }}>Từ file khác…</button>
-              </div>
+              <InsertMenu onDone={() => setMenu(false)} />
             </>
           )}
         </div>
-        <button className="btn ghost" onClick={() => o.rotate(-90)} disabled={!n || busy} title="Xoay trái (Shift+R)">⟲ Xoay trái</button>
-        <button className="btn ghost" onClick={() => o.rotate(90)} disabled={!n || busy} title="Xoay phải (R)">⟳ Xoay phải</button>
+        <button className="btn ghost" onClick={() => o.rotate(-90)} disabled={!n || busy} title="Xoay trái (Shift+R)" aria-label="Xoay trái">⟲</button>
+        <button className="btn ghost" onClick={() => o.rotate(90)} disabled={!n || busy} title="Xoay phải (R)" aria-label="Xoay phải">⟳</button>
         <button className="btn ghost" onClick={o.remove} disabled={!n || busy} title="Xoá (Delete)">Xoá</button>
         <span className="org-sep" />
         <button className="btn ghost" onClick={() => void o.extract()} disabled={!n || busy}>Trích xuất…</button>
-        <button className="btn ghost" onClick={() => setSplitOpen(true)} disabled={busy}>Tách file…</button>
+        <button className="btn ghost" onClick={() => setDialog("split")} disabled={busy}>Tách file…</button>
+        <button className="btn ghost" onClick={() => setDialog("replace")} disabled={!n || busy} title="Thay các trang đã chọn bằng trang của file khác">Thay thế…</button>
         <button className="btn ghost" onClick={o.reverse} disabled={busy} title={n > 1 ? "Đảo thứ tự các trang đã chọn" : "Đảo thứ tự cả tài liệu"}>Đảo thứ tự</button>
+        <button className="btn ghost" onClick={() => setDialog("crop")} disabled={busy} title={n ? "Cắt lề các trang đã chọn" : "Cắt lề cả tài liệu"}>Cắt lề…</button>
+        <button className="btn ghost" onClick={() => setDialog("number")} disabled={busy} title={n ? "Đánh số các trang đã chọn" : "Đánh số cả tài liệu"}>Đánh số…</button>
         <span className="org-sep" />
         <button className="btn ghost" onClick={o.undo} disabled={!o.history.past.length || busy} title="Hoàn tác (Ctrl+Z)">↶</button>
         <button className="btn ghost" onClick={o.redo} disabled={!o.history.future.length || busy} title="Làm lại (Ctrl+Y)">↷</button>
@@ -288,8 +294,9 @@ export function Organizer() {
         <button className="btn primary" onClick={() => setMode("view")}>Xong</button>
       </div>
 
-      <div className="org-scroll" ref={scroller} onPointerDown={onBackgroundDown}>
-        <div className="org-grid" ref={grid} role="listbox" aria-multiselectable="true" aria-label="Các trang">
+      <div className={`org-scroll${fileOver ? " file-over" : ""}`} ref={scroller} onPointerDown={onBackgroundDown}>
+        <div className="org-grid" ref={grid} role="listbox" aria-multiselectable="true" aria-label="Các trang"
+          onPointerMove={onGridMove} onPointerLeave={() => { if (!plusMenu) setPlus(null); }}>
           {items.map((p, i) => {
             const [bw, bh] = tileBox(p, thumb);
             const isSel = selected.has(p.id);
@@ -303,6 +310,8 @@ export function Organizer() {
               >
                 <div className="obox" style={{ width: bw, height: bh }}>
                   <Thumb item={p} bw={bw} bh={bh} />
+                  <CropShade item={p} bw={bw} />
+                  <StampBadge item={p} bw={bw} />
                   {color && <i className="ogroup" style={{ background: color }} />}
                   <input
                     type="checkbox" className="ocheck" checked={isSel} aria-label={`Chọn trang ${i + 1}`}
@@ -320,6 +329,18 @@ export function Organizer() {
             );
           })}
           {indicator && <div className="oline" style={indicator} />}
+          {plus && !drag && (
+            <div className="oplus" style={{ left: plus.x, top: plus.y }} onPointerDown={(e) => e.stopPropagation()}>
+              <button aria-label="Chèn trang tại đây" aria-haspopup="menu" aria-expanded={plusMenu} title="Chèn trang tại đây"
+                onClick={() => setPlusMenu(!plusMenu)} disabled={busy}>+</button>
+              {plusMenu && (
+                <>
+                  <div className="org-backdrop" onPointerDown={(e) => e.stopPropagation()} onClick={() => { setPlusMenu(false); setPlus(null); }} />
+                  <InsertMenu at={plus.at} onDone={() => { setPlusMenu(false); setPlus(null); }} />
+                </>
+              )}
+            </div>
+          )}
           {marquee && (
             <div className="omarquee" style={{
               left: marquee.x0, top: marquee.y0, width: marquee.x1 - marquee.x0, height: marquee.y1 - marquee.y0,
@@ -336,46 +357,27 @@ export function Organizer() {
       )}
 
 
-      {splitOpen && <SplitDialog total={items.length} onClose={() => setSplitOpen(false)} />}
+      {fileOver && <div className="org-dropnote" aria-hidden="true">Thả file vào chỗ có vạch xanh để chèn (PDF, ảnh, Word, Excel, PowerPoint)</div>}
+      {dialog === "split" && <SplitDialog total={items.length} onClose={() => setDialog(null)} />}
+      {dialog === "crop" && <CropDialog onClose={() => setDialog(null)} />}
+      {dialog === "number" && <NumberDialog onClose={() => setDialog(null)} />}
+      {dialog === "replace" && <ReplaceDialog onClose={() => setDialog(null)} />}
     </div>
   );
 }
 
-function SplitDialog({ total, onClose }: { total: number; onClose: () => void }) {
-  const split = useOrganizer((s) => s.split);
-  const busy = useOrganizer((s) => s.busy);
-  const [mode, setMode] = useState<"every" | "ranges">("every");
-  const [every, setEvery] = useState("10");
-  const [ranges, setRanges] = useState("");
-
-  const submit = async () => {
-    if (await split(mode, mode === "every" ? every : ranges)) onClose();
-  };
-
+/** Các cách chèn trang; `at` là vị trí khe đã bấm (không có thì chèn sau trang đang chọn). */
+function InsertMenu({ at, onDone }: { at?: number; onDone: () => void }) {
+  const insert = useOrganizer((s) => s.insert);
+  const entries: [InsertSource, string][] = [
+    ["blank", "Trang trắng"], ["file", "Từ file khác…"], ["image", "Từ ảnh…"], ["clipboard", "Từ clipboard"],
+  ];
   return (
-    <div className="modal-scrim" onPointerDown={onClose}>
-      <div className="modal" role="dialog" aria-label="Tách file" onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); if (e.key === "Enter") void submit(); }}>
-        <h2>Tách file</h2>
-        <p className="muted">Tách {total} trang hiện tại (theo thứ tự đang sắp xếp) thành nhiều file, rồi chọn thư mục để lưu.</p>
-        <label className="radio">
-          <input type="radio" checked={mode === "every"} onChange={() => setMode("every")} />
-          Mỗi file
-          <input className="inp" type="number" min={1} value={every} disabled={mode !== "every"}
-            onChange={(e) => setEvery(e.target.value)} aria-label="Số trang mỗi file" autoFocus />
-          trang
-        </label>
-        <label className="radio">
-          <input type="radio" checked={mode === "ranges"} onChange={() => setMode("ranges")} />
-          Theo khoảng trang
-        </label>
-        <input className="inp wide" placeholder="Ví dụ: 1-3, 5, 7-9 (mỗi mục là một file)" value={ranges}
-          disabled={mode !== "ranges"} onChange={(e) => setRanges(e.target.value)} aria-label="Khoảng trang" />
-        <div className="modal-actions">
-          <button className="btn ghost" onClick={onClose}>Huỷ</button>
-          <button className="btn primary" onClick={() => void submit()} disabled={busy}>{busy ? "Đang tách…" : "Chọn thư mục và tách"}</button>
-        </div>
-      </div>
+    <div className="org-popover" role="menu">
+      {entries.map(([kind, label]) => (
+        <button key={kind} role="menuitem" onClick={() => { onDone(); void insert(kind, at); }}>{label}</button>
+      ))}
+      <button role="menuitem" disabled title="Chưa làm: cần nối với máy quét">Từ máy quét (chưa có)</button>
     </div>
   );
 }

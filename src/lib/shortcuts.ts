@@ -39,19 +39,39 @@ export function matches(e: KeyLike, c: Combo): boolean {
 }
 
 const registry = new Map<string, Command & { combos: Combo[] }>();
+/** Phím người dùng tự đặt (Cài đặt > Phím tắt): thay phím mặc định của lệnh theo `id`. Mảng rỗng = gỡ phím. */
+let overrides: Record<string, string[]> = {};
+
+const keysOf = (c: Command) => overrides[c.id] ?? c.keys;
+const withCombos = (c: Command) => ({ ...c, combos: keysOf(c).map(parseCombo) });
 
 /** Đăng ký lệnh; trả hàm huỷ đăng ký. Đăng ký lại cùng `id` thì thay thế. */
 export function registerCommands(cmds: Command[]): () => void {
-  for (const c of cmds) registry.set(c.id, { ...c, combos: c.keys.map(parseCombo) });
+  for (const c of cmds) registry.set(c.id, withCombos(c));
   return () => { for (const c of cmds) if (registry.get(c.id)?.run === c.run) registry.delete(c.id); };
 }
 
-export const listCommands = (): Command[] => [...registry.values()];
+/** Phím đang có hiệu lực của mỗi lệnh (đã tính phím người dùng đặt lại). */
+export const listCommands = (): Command[] => [...registry.values()].map((c) => ({ ...c, keys: keysOf(c) }));
+
+/** Đặt bộ phím tuỳ chỉnh và áp dụng ngay cho các lệnh đã đăng ký. */
+export function setKeyOverrides(next: Record<string, string[]>) {
+  overrides = next;
+  for (const [id, c] of registry) registry.set(id, withCombos(c));
+}
+export const getKeyOverrides = () => overrides;
+
+/** Chuyển phím vừa nhấn thành chuỗi như "Mod+Shift+P" (null nếu mới chỉ nhấn phím bổ trợ). */
+export function comboFromEvent(e: KeyLike): string | null {
+  if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return null;
+  const key = e.key === " " ? "Space" : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  return [(e.ctrlKey || e.metaKey) && "Mod", e.altKey && "Alt", e.shiftKey && "Shift", key].filter(Boolean).join("+");
+}
 
 /** Các cặp lệnh dùng trùng một phím (trừ khi `when` loại trừ nhau thì không thể biết ở đây, chỉ để cảnh báo trong Cài đặt). */
 export function findConflicts(): { keys: string; ids: string[] }[] {
   const by = new Map<string, string[]>();
-  for (const c of registry.values()) for (const k of c.keys) {
+  for (const c of registry.values()) for (const k of keysOf(c)) {
     const norm = JSON.stringify(parseCombo(k));
     by.set(norm, [...(by.get(norm) ?? []), c.id]);
   }

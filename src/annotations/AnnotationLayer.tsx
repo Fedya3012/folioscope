@@ -35,13 +35,12 @@ function usePageElements(root: HTMLElement | null) {
 
 export function AnnotationLayer() {
   const { mode, path } = useStore();
-  const reset = useAnnot((s) => s.reset);
   const [root, setRoot] = useState<HTMLElement | null>(null);
   useEffect(() => { setRoot(document.querySelector<HTMLElement>(".canvas")); }, [path]);
   const pages = usePageElements(root);
 
-  // Mở file khác thì bỏ chú thích của file cũ.
-  useEffect(() => { reset(); runCache.clear(); }, [path, reset]);
+  // Chú thích theo từng tài liệu: store tab (store.ts) cất/nạp lại khi chuyển tab, và xoá khi mở tài liệu mới.
+  useEffect(() => { runCache.clear(); }, [path]); // lớp chữ của file cũ không dùng lại
 
   // Phím của chế độ Ghi chú đăng ký vào hệ phím tắt chung (Ctrl+Z/Y do hệ hoàn tác toàn cục lo).
   useEffect(() => {

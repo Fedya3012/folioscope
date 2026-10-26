@@ -23,6 +23,8 @@ const ACTIONS: Action[] = [
   { id: "ocr", label: "OCR", desc: "Nhận dạng chữ trong ảnh", icon: "ocr", tone: "info" },
 ];
 
+const CLOUDS = ["Google Drive", "Dropbox", "OneDrive"];
+
 const TEMPLATES: [string, string][] = [
   ["Hoá đơn", "Có bảng tính tiền và thuế"], ["Hợp đồng", "Các điều khoản cơ bản"], ["CV", "Một trang, gọn gàng"],
   ["Biểu mẫu đăng ký", "Trường điền sẵn"], ["Báo giá", "Danh mục và tổng cộng"], ["Biên bản", "Họp, bàn giao, nghiệm thu"],
@@ -126,6 +128,14 @@ export function Home({ onOpenDialog, onOpenPath, onCombine }: HomeProps) {
             </button>
           ))}
         </nav>
+        <div className="side-cloud">
+          <h3>Đám mây <em className="soon">Sắp có</em></h3>
+          {CLOUDS.map((c) => <button key={c} className="side-item" disabled title="Chưa có kết nối đám mây"><Icon name="upload" /> {c}</button>)}
+          <div className="storage" aria-label="Dung lượng đám mây: chưa kết nối">
+            <div className="storage-bar" aria-hidden="true"><i /></div>
+            <small>Chưa kết nối tài khoản</small>
+          </div>
+        </div>
         <div className="side-foot">
           {info && <button className="side-item" onClick={() => setView("doc")}><Icon name="file" /> Quay lại tài liệu</button>}
           <button className="side-item" onClick={() => setSettingsOpen(true)}><Icon name="settings" /> Cài đặt</button>
