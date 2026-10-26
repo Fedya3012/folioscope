@@ -60,7 +60,7 @@ fn library_dirs() -> Vec<PathBuf> {
 /// PDFium chỉ được nạp một lần cho cả tiến trình, nên giữ bản dùng chung.
 static PDFIUM: OnceLock<Result<Pdfium, String>> = OnceLock::new();
 
-fn bind() -> Result<&'static Pdfium, PdfError> {
+pub(crate) fn bind() -> Result<&'static Pdfium, PdfError> {
     PDFIUM
         .get_or_init(|| {
             let mut last = String::from("không có đường dẫn nào");
