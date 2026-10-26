@@ -1,3 +1,4 @@
+mod ai;
 mod annotations;
 mod combine;
 mod commands;
@@ -41,6 +42,7 @@ pub fn run() {
             app.manage(db::Db::open(&data_dir.join("folioscope.sqlite"))?);
             office_install::set_home(data_dir.join("libreoffice"));
             ocr_install::set_home(data_dir.join("tesseract"));
+            ai::set_home(data_dir.join("ai"));
             let args: Vec<String> = std::env::args().collect();
             launch::handle_args(app.handle(), &args);
             Ok(())
@@ -55,6 +57,11 @@ pub fn run() {
             viewer::get_outline,
             viewer::get_text_runs,
             viewer::search_text,
+            viewer::get_doc_text,
+            ai::ai_key_status,
+            ai::ai_key_set,
+            ai::ai_key_clear,
+            ai::ai_chat,
             commands::probe_files,
             commands::office_status,
             commands::office_install_supported,

@@ -153,3 +153,12 @@ export async function pickImage(): Promise<string | null> {
   const picked = await open({ multiple: false, filters: [{ name: "Ảnh", extensions: ["png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "webp"] }] });
   return typeof picked === "string" ? picked : null;
 }
+// ---- Chữ từng trang (so sánh, AI) ----
+export const getDocText = (path: string) => invoke<string[]>("get_doc_text", { path });
+
+// ---- Trợ lý AI (khoá API nằm trong kho khoá hệ điều hành, không bao giờ về lại giao diện) ----
+export type AiChatRequest = { model: string; system: string; messages: { role: "user" | "assistant"; content: string }[]; max_tokens: number };
+export const aiKeyStatus = () => invoke<boolean>("ai_key_status");
+export const aiKeySet = (key: string) => invoke<void>("ai_key_set", { key });
+export const aiKeyClear = () => invoke<void>("ai_key_clear");
+export const aiChat = (request: AiChatRequest) => invoke<string>("ai_chat", { request });

@@ -142,6 +142,14 @@ mod tests {
     }
 
     #[test]
+    fn doc_text_has_one_entry_per_page() {
+        let Some(path) = sample() else { return };
+        let pages = doc_text(&path).expect("lấy được chữ");
+        assert!(!pages.is_empty());
+        assert!(pages.iter().any(|p| p.split_whitespace().count() > 10), "ít nhất một trang phải có chữ");
+    }
+
+    #[test]
     fn text_runs_and_search_on_sample() {
         let Some(path) = sample() else { return };
         let runs = get_text_runs(path.clone(), 5).expect("lấy được lớp chữ");
@@ -162,4 +170,18 @@ mod tests {
         fn walk(items: &[OutlineItem]) { for i in items { walk(&i.children); } }
         walk(&items);
     }
+}
+
+/// Chữ của từng trang (theo thứ tự), để so sánh hai bản và để gửi cho trợ lý AI.
+fn doc_text(path: &str) -> Result<Vec<String>, PdfError> {
+    let pdfium = bind()?;
+    let doc = load(pdfium, path)?;
+    Ok(doc.pages().iter().map(|p| p.text().map(|t| t.all()).unwrap_or_default()).collect())
+}
+
+#[tauri::command]
+pub async fn get_doc_text(path: String) -> Result<Vec<String>, PdfError> {
+    tauri::async_runtime::spawn_blocking(move || doc_text(&path))
+        .await
+        .map_err(|e| PdfError::Render(e.to_string()))?
 }

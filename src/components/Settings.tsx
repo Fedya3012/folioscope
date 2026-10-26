@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ACROBAT_PRESET, applyPreset, conflictsFor, resetAllKeys, resetKeys, setKeys } from "../lib/keymap";
 import { comboFromEvent, formatCombo, getKeyOverrides, listCommands, parseCombo } from "../lib/shortcuts";
+import { AI_MODELS } from "../lib/ai";
+import { aiKeyClear, aiKeySet, aiKeyStatus } from "../lib/api";
 import { ACCENTS, RECENT_LIMITS, UI_SIZES, type Settings as S } from "../lib/settings";
 import { toast } from "../lib/toast";
 import { useStore } from "../store";
@@ -19,6 +21,32 @@ const PLANNED: Partial<Record<Group, string>> = {
   account: "Đăng nhập, thiết bị và kết nối cloud (Google Drive, Dropbox, OneDrive). Folioscope dùng cá nhân và chưa có máy chủ nên mục này để dành; chưa cần gói đăng ký.",
   advanced: "Tăng tốc GPU, bộ nhớ cache, nhật ký lỗi, xuất/nhập cài đặt.",
 };
+
+/** Khoá API của dịch vụ AI: dán vào, lưu vào kho khoá của hệ điều hành; ô này không bao giờ hiện lại khoá đã lưu. */
+function AiKey() {
+  const [saved, setSaved] = useState<boolean | null>(null);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { aiKeyStatus().then(setSaved).catch(() => setSaved(false)); }, []);
+  const save = async () => {
+    setBusy(true);
+    try { await aiKeySet(text); setText(""); setSaved(true); toast.success("Đã lưu khoá API"); }
+    catch (e) { toast.error(String(e)); }
+    finally { setBusy(false); }
+  };
+  const clear = async () => {
+    try { await aiKeyClear(); setSaved(false); toast.success("Đã xoá khoá API khỏi máy"); } catch (e) { toast.error(String(e)); }
+  };
+  return (
+    <div className="ai-key">
+      {saved && <span className="ai-key-ok">Đã lưu khoá</span>}
+      <input type="password" className="field" autoComplete="off" spellCheck={false} value={text} aria-label="Khoá API Anthropic"
+        placeholder={saved ? "Dán khoá mới để thay" : "Dán khoá API (sk-ant-…)"} onChange={(e) => setText(e.target.value)} />
+      <button className="btn primary" disabled={busy || !text.trim()} onClick={() => void save()}>Lưu</button>
+      {saved && <button className="btn ghost danger-text" onClick={() => void clear()}>Xoá khoá</button>}
+    </div>
+  );
+}
 
 /** Bảng phím tắt: ghi phím mới, cảnh báo trùng, khôi phục mặc định, bộ "Giống Acrobat". */
 function KeyMap() {
@@ -174,6 +202,10 @@ export function Settings() {
 
     { id: "aion", group: "ai", label: "Bật AI Assistant", desc: "Gửi câu hỏi qua mạng tới dịch vụ AI. Đang tắt thì không có gì rời khỏi máy.", keywords: "ai trợ lý bật tắt",
       control: <Toggle label="Bật AI Assistant" on={st.aiEnabled} onChange={(aiEnabled) => set({ aiEnabled })} /> },
+    { id: "aikey", group: "ai", label: "Khoá API (Anthropic)", desc: "Lấy khoá tại console.anthropic.com. Khoá lưu trong kho khoá của hệ điều hành (Windows: Credential Manager), không nằm trong file cài đặt. Tính tiền theo tài khoản của bạn.", keywords: "api key khoá anthropic claude",
+      control: <AiKey /> },
+    { id: "aimodel", group: "ai", label: "Mô hình", desc: "Mô hình mạnh hơn trả lời kỹ hơn nhưng chậm và tốn tiền hơn.", keywords: "model sonnet haiku opus",
+      control: <Seg label="Mô hình" value={st.aiModel} onChange={(aiModel) => set({ aiModel })} options={AI_MODELS} /> },
     { id: "aimode", group: "ai", label: "Nơi xử lý", desc: "AI chạy trên cloud. Chế độ chạy ngay trên máy chưa có.", keywords: "cloud máy local",
       control: <Seg label="Nơi xử lý" value={"cloud"} onChange={() => {}} options={[["cloud", "Cloud (qua mạng)"]]} /> },
     { id: "airedact", group: "ai", label: "Không gửi nội dung nhạy cảm", desc: "Che số thẻ, CMND/CCCD và email trước khi gửi.", keywords: "riêng tư bảo mật nhạy cảm",
