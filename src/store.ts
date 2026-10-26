@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { LEFT, RIGHT, ZOOM_MAX, ZOOM_MIN, clamp, resolvePanelWidth, stepZoom } from "./lib/layout";
 import { getOutline, openDocument, searchText, type DocumentInfo, type OutlineItem, type SearchHit } from "./lib/api";
-import { stepIndex, type Fit, type ViewMode } from "./lib/viewer";
+import { isPageTheme, passwordFailure, stepIndex, type Fit, type PageTheme, type ViewMode } from "./lib/viewer";
 
 export type Theme = "light" | "dark";
 export type Mode = "view" | "annotate" | "edit" | "pages" | "tools";
@@ -23,8 +23,23 @@ const savedTheme = (): Theme => {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
+const savedPageTheme = (): PageTheme => {
+  try {
+    const t = localStorage.getItem("folioscope.pageTheme");
+    if (isPageTheme(t)) return t;
+  } catch { /* chạy được dù không có localStorage */ }
+  return "normal";
+};
+
+/** File đang chờ mật khẩu; `wrong` là lần nhập trước bị sai. */
+export type PasswordPrompt = { path: string; wrong: boolean };
+
 interface State {
   theme: Theme;
+  pageTheme: PageTheme;
+  passwordPrompt: PasswordPrompt | null;
+  setPageTheme(t: PageTheme): void;
+  cancelPassword(): void;
   mode: Mode;
   leftOpen: boolean; leftWidth: number;
   rightOpen: boolean; rightWidth: number;
@@ -36,7 +51,7 @@ interface State {
   setMode(m: Mode): void;
   togglePanel(p: PanelKey): void;
   dragPanel(p: PanelKey, rawWidth: number): void;
-  load(path: string): Promise<void>;
+  load(path: string, password?: string): Promise<void>;
   setPage(i: number): void;
   zoomBy(dir: 1 | -1): void;
   setZoom(z: number, fit?: Fit): void;
@@ -51,7 +66,7 @@ interface State {
 }
 
 export const useStore = create<State>((set, get) => ({
-  theme: savedTheme(), mode: "view",
+  theme: savedTheme(), pageTheme: savedPageTheme(), passwordPrompt: null, mode: "view",
   leftOpen: true, leftWidth: LEFT.def, rightOpen: false, rightWidth: RIGHT.def,
   path: null, info: null, error: null, currentPage: 0, zoom: 1,
   viewMode: "continuous", fit: "width", tool: "select",
@@ -62,21 +77,29 @@ export const useStore = create<State>((set, get) => ({
     try { localStorage.setItem("folioscope.theme", theme); } catch { /* bỏ qua */ }
     set({ theme });
   },
+  setPageTheme(pageTheme) {
+    try { localStorage.setItem("folioscope.pageTheme", pageTheme); } catch { /* bỏ qua */ }
+    set({ pageTheme });
+  },
+  cancelPassword: () => set({ passwordPrompt: null }),
   setMode: (mode) => set({ mode }),
   togglePanel: (p) => set(p === "left" ? { leftOpen: !get().leftOpen } : { rightOpen: !get().rightOpen }),
   dragPanel(p, raw) {
     const r = resolvePanelWidth(raw, p === "left" ? LEFT : RIGHT);
     set(p === "left" ? { leftOpen: r.open, leftWidth: r.width } : { rightOpen: r.open, rightWidth: r.width });
   },
-  async load(path) {
+  async load(path, password) {
     try {
-      const info = await openDocument(path);
+      const info = await openDocument(path, password);
       searchGen++;
-      set({ path, info, error: null, currentPage: 0, fit: "width", outline: [], search: noSearch, nav: { page: 0, y: null, nonce: get().nav.nonce + 1 } });
+      set({ path, info, error: null, passwordPrompt: null, currentPage: 0, fit: "width", outline: [], search: noSearch, nav: { page: 0, y: null, nonce: get().nav.nonce + 1 } });
       // Mục lục có thể không có hoặc hỏng; không để nó cản việc mở file.
       getOutline(path).then((outline) => { if (get().path === path) set({ outline }); }).catch(() => {});
     } catch (e) {
-      set({ error: String(e) });
+      // File có mật khẩu: không báo lỗi, mở hộp nhập mật khẩu.
+      const why = passwordFailure(e);
+      if (why) set({ passwordPrompt: { path, wrong: why === "wrong" }, error: null });
+      else set({ error: String(e), passwordPrompt: null });
     }
   },
   setPage: (i) => set({ currentPage: clamp(i, 0, Math.max(0, (get().info?.page_count ?? 1) - 1)) }),

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { Resizer } from "./components/Resizer";
 import { Organizer } from "./components/Organizer";
 import { Outline } from "./components/Outline";
@@ -7,7 +8,9 @@ import { SEARCH_INPUT_ID, SearchPanel } from "./components/SearchPanel";
 import { Thumbnails } from "./components/Thumbnails";
 import { Viewer } from "./components/Viewer";
 import { CombineDialog } from "./components/CombineDialog";
-import { parsePageInput } from "./lib/viewer";
+import { PasswordDialog } from "./components/PasswordDialog";
+import { ViewControls } from "./components/ViewControls";
+import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput, pickDroppedPdf } from "./lib/viewer";
 import { AnnotateBar } from "./annotations/AnnotateBar";
 import { AnnotationLayer } from "./annotations/AnnotationLayer";
 import { pickPdf, takeLaunchFiles } from "./lib/api";
@@ -71,6 +74,26 @@ export function App() {
     return () => { void sub.then((un) => un()); };
   }, []);
 
+  // Kéo file từ Explorer thả vào cửa sổ để mở. Hộp thoại Gộp file tự nhận file thả khi đang mở.
+  const [dragging, setDragging] = useState(false);
+  const combineOpen = combine !== null;
+  useEffect(() => {
+    if (combineOpen) return;
+    const sub = getCurrentWebview().onDragDropEvent((e) => {
+      const t = e.payload.type;
+      if (t === "enter" || t === "over") setDragging(true);
+      else if (t === "leave") setDragging(false);
+      else if (t === "drop") {
+        setDragging(false);
+        const { pdf, skipped } = pickDroppedPdf(e.payload.paths);
+        if (pdf) void s.load(pdf);
+        else if (skipped) useStore.setState({ error: "Chỉ mở được file PDF. Để ghép file khác, dùng nút Gộp file…" });
+      }
+    });
+    return () => { void sub.then((un) => un()); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combineOpen]);
+
   const open = async () => { const p = await pickPdf(); if (p) await s.load(p); };
   const fileName = s.path?.split(/[\\/]/).pop();
 
@@ -125,10 +148,10 @@ export function App() {
         )}
 
         <main className="canvas">
-          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /></> : (
+          {organizing ? <Organizer /> : s.info ? <><Viewer /><AnnotationLayer /><ViewControls /></> : (
             <div className="empty">
               <h1>Mở file PDF đầu tiên của bạn</h1>
-              <p>{s.error ?? "Chọn một file để xem. Kéo thả sẽ có ở bản sau."}</p>
+              <p>{s.error ?? "Chọn một file để xem, hoặc kéo file PDF thả vào cửa sổ."}</p>
               <div><button className="btn primary" onClick={open}>Chọn file…</button></div>
             </div>
           )}
@@ -163,12 +186,15 @@ export function App() {
         <button className="btn ghost" aria-label="Trang sau" disabled={!s.info || s.currentPage >= s.info.page_count - 1} onClick={() => s.goToPage(s.currentPage + 1)}>›</button>
         {pagesDirty && <span>Có thay đổi trang chưa lưu</span>}
         <span className="spacer" />
+        <button className="btn ghost" title="Đổi màu nền trang" onClick={() => s.setPageTheme(nextPageTheme(s.pageTheme))}>{PAGE_THEME_LABEL[s.pageTheme]}</button>
         <button className="btn ghost" onClick={() => s.setFit("width")} aria-pressed={s.fit === "width"}>Vừa bề rộng</button>
         <button className="btn ghost" onClick={() => s.setFit("page")} aria-pressed={s.fit === "page"}>Vừa trang</button>
         <button className="btn ghost" onClick={() => s.zoomBy(-1)} aria-label="Thu nhỏ">−</button>
         <span className="zoomlabel">{Math.round(s.zoom * 100)}%</span>
         <button className="btn ghost" onClick={() => s.zoomBy(1)} aria-label="Phóng to">+</button>
       </footer>
+      {dragging && <div className="drop-overlay" aria-hidden="true"><div>Thả để mở</div></div>}
+      <PasswordDialog />
       {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}
     </div>
   );

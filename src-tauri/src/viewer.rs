@@ -5,7 +5,7 @@
 use pdfium_render::prelude::*;
 use serde::Serialize;
 
-use crate::pdf::{bind, PdfError};
+use crate::pdf::{bind, load, PdfError};
 
 /// Hình chữ nhật theo tỉ lệ trang: [trái, trên, rộng, cao].
 pub type NormRect = [f32; 4];
@@ -75,14 +75,14 @@ fn collect(first: Option<PdfBookmark>, depth: usize) -> Vec<OutlineItem> {
 #[tauri::command]
 pub fn get_outline(path: String) -> Result<Vec<OutlineItem>, PdfError> {
     let pdfium = bind()?;
-    let doc = pdfium.load_pdf_from_file(&path, None).map_err(|e| PdfError::Open(e.to_string()))?;
+    let doc = load(pdfium, &path)?;
     Ok(collect(doc.bookmarks().root(), 0))
 }
 
 #[tauri::command]
 pub fn get_text_runs(path: String, index: u16) -> Result<Vec<TextRun>, PdfError> {
     let pdfium = bind()?;
-    let doc = pdfium.load_pdf_from_file(&path, None).map_err(|e| PdfError::Open(e.to_string()))?;
+    let doc = load(pdfium, &path)?;
     let page = doc.pages().get(index as i32).map_err(|_| PdfError::PageOutOfRange(index))?;
     let (pw, ph) = (page.width().value, page.height().value);
     let text = page.text().map_err(|e| PdfError::Render(e.to_string()))?;
@@ -96,7 +96,7 @@ pub fn get_text_runs(path: String, index: u16) -> Result<Vec<TextRun>, PdfError>
 
 fn search_doc(path: &str, query: &str, match_case: bool) -> Result<SearchResult, PdfError> {
     let pdfium = bind()?;
-    let doc = pdfium.load_pdf_from_file(path, None).map_err(|e| PdfError::Open(e.to_string()))?;
+    let doc = load(pdfium, path)?;
     let opts = PdfSearchOptions::new().match_case(match_case);
     let mut hits = Vec::new();
     for (i, page) in doc.pages().iter().enumerate() {

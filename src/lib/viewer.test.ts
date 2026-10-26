@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitPageZoom, fitWidthZoom, pageAtScroll, pageOffsets, pageWidthPx, parsePageInput, stepIndex, wheelZoom, PAGE_GAP, PAGE_PAD } from "./viewer";
+import { isPageTheme, nextPageTheme, passwordFailure, pickDroppedPdf, zoomChoice, fitPageZoom, fitWidthZoom, pageAtScroll, pageOffsets, pageWidthPx, parsePageInput, stepIndex, wheelZoom, PAGE_GAP, PAGE_PAD } from "./viewer";
 
 const A4: [number, number] = [595, 842];
 
@@ -47,5 +47,48 @@ describe("parsePageInput / stepIndex / wheelZoom", () => {
   it("lăn lên phóng to, lăn xuống thu nhỏ", () => {
     expect(wheelZoom(1, -100)).toBeGreaterThan(1);
     expect(wheelZoom(1, 100)).toBeLessThan(1);
+  });
+});
+
+describe("màu nền trang", () => {
+  it("xoay vòng trắng → đêm → sepia → trắng", () => {
+    expect(nextPageTheme("normal")).toBe("night");
+    expect(nextPageTheme("night")).toBe("sepia");
+    expect(nextPageTheme("sepia")).toBe("normal");
+  });
+  it("nhận ra giá trị hợp lệ", () => {
+    expect(isPageTheme("night")).toBe(true);
+    expect(isPageTheme("x")).toBe(false);
+    expect(isPageTheme(null)).toBe(false);
+  });
+});
+
+describe("zoomChoice", () => {
+  it("ưu tiên chế độ vừa", () => {
+    expect(zoomChoice(1.3, "width")).toBe("width");
+    expect(zoomChoice(1, "page")).toBe("page");
+  });
+  it("khớp mức có sẵn hoặc báo lẻ", () => {
+    expect(zoomChoice(1.5, null)).toBe("1.5");
+    expect(zoomChoice(1.5001, null)).toBe("1.5");
+    expect(zoomChoice(1.37, null)).toBe("custom");
+  });
+});
+
+describe("pickDroppedPdf", () => {
+  it("lấy PDF đầu tiên, không phân biệt hoa thường", () => {
+    expect(pickDroppedPdf(["C:\\a.docx", "C:\\b.PDF", "c.pdf"])).toEqual({ pdf: "C:\\b.PDF", skipped: 2 });
+  });
+  it("không có PDF thì pdf là null", () => {
+    expect(pickDroppedPdf(["a.png"])).toEqual({ pdf: null, skipped: 1 });
+    expect(pickDroppedPdf([])).toEqual({ pdf: null, skipped: 0 });
+  });
+});
+
+describe("passwordFailure", () => {
+  it("nhận ra hai lỗi mật khẩu của lõi", () => {
+    expect(passwordFailure("PASSWORD_REQUIRED")).toBe("required");
+    expect(passwordFailure(new Error("WRONG_PASSWORD"))).toBe("wrong");
+    expect(passwordFailure("không mở được file")).toBeNull();
   });
 });

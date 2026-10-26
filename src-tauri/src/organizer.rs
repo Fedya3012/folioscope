@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use pdfium_render::prelude::*;
 use serde::Deserialize;
 
-use crate::pdf::{bind, PdfError};
+use crate::pdf::{bind, load, PdfError};
 
 /// Một trang của tài liệu kết quả.
 #[derive(Debug, Deserialize)]
@@ -62,9 +62,7 @@ pub fn export_pages(pages: Vec<PageRef>, output: String) -> Result<u32, PdfError
         for p in &pages {
             if let Some(src) = p.source.as_deref() {
                 if !sources.contains_key(src) {
-                    let doc = pdfium
-                        .load_pdf_from_file(src, None)
-                        .map_err(|e| PdfError::Open(format!("{src}: {e}")))?;
+                    let doc = load(pdfium, src)?;
                     sources.insert(src, doc);
                 }
             }
@@ -132,9 +130,9 @@ mod tests {
         ];
         assert_eq!(export_pages(pages, out.clone()).unwrap(), 4);
 
-        let info = crate::pdf::open_document(out.clone()).unwrap();
+        let info = crate::pdf::open_document(out.clone(), None).unwrap();
         assert_eq!(info.page_count, 4);
-        let orig = crate::pdf::open_document(src).unwrap();
+        let orig = crate::pdf::open_document(src, None).unwrap();
         // trang 3 gốc xoay 90° → rộng/cao đổi chỗ
         assert_eq!(info.page_sizes[0].0.round(), orig.page_sizes[2].1.round());
         assert_eq!(info.page_sizes[1].0.round(), 300.0);
