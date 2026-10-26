@@ -1,6 +1,7 @@
 import { savePath } from "./save";
 import { useAnnot } from "./store";
-import { COLORS, TOOLS } from "./types";
+import { UNITS, type Unit } from "./measure";
+import { COLORS, STAMPS, TOOLS, isMeasure } from "./types";
 import { useStore } from "../store";
 
 /** Thanh công cụ ghi chú, hiện ngay dưới thanh chính khi vào chế độ "Ghi chú". */
@@ -29,6 +30,17 @@ export function AnnotateBar() {
       {COLORS.map((c) => (
         <button key={c} className="swatch" aria-label={`Màu ${c}`} aria-pressed={a.color === c} style={{ background: c }} onClick={() => a.setStyle({ color: c })} />
       ))}
+      {a.tool === "stamp" && (
+        <select aria-label="Loại tem" value={a.stamp} onChange={(e) => a.setStamp(e.target.value)}>
+          {STAMPS.map((x) => <option key={x.label}>{x.label}</option>)}
+        </select>
+      )}
+      {isMeasure(a.tool) && (
+        <span className="measure-opts">
+          <select aria-label="Đơn vị đo" value={a.scale.unit} onChange={(e) => a.setScale({ unit: e.target.value as Unit })}>{UNITS.map((u) => <option key={u}>{u}</option>)}</select>
+          {a.tool !== "distance" && <em>Bấm từng điểm, bấm đúp hoặc Enter để kết thúc</em>}
+        </span>
+      )}
       <span className="spacer" />
       <button disabled={!a.past.length} onClick={a.undo}>Hoàn tác</button>
       <button disabled={!a.future.length} onClick={a.redo}>Làm lại</button>

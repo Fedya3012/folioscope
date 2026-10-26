@@ -34,3 +34,9 @@
 ## Sửa nội dung PDF (Gói H)
 Xem `docs/content-editing.md`. Điểm cần nhớ cho các gói sau: sửa đổi nội dung nằm ở `src/edit/store.ts` (`useEdit`) và đã được `capture()`/`restore()`/`isDirty()` trong `src/store.ts` xử lý; `Viewer.tsx` vẽ trang bằng `render_page_edited` khi trang có sửa đổi chưa lưu.
 
+## Ghi chú (Gói F)
+- `src/annotations/snap.ts`: kéo chuột trên chữ → các hình chữ nhật bám từng dòng (dùng `getTextRuns` của Viewer, không sửa Viewer). Trang ảnh quét không có lớp chữ thì dùng khung tự do.
+- `src/annotations/measure.ts`: đo khoảng cách, chu vi, diện tích theo kích thước trang (điểm PDF) và tỉ lệ (`folioscope.measureScale`).
+- `src/annotations/export.ts`: đổi chú thích trong app thành danh sách phẳng cho Rust (`save_annotations`): đánh dấu nhiều dòng, bình luận kèm trả lời, tem, số đo. Phía Rust không đổi.
+- Bảng phải `AnnotationPanel.tsx`: thuộc tính đối tượng đang chọn, bình luận và trả lời, danh sách bình luận. Phím công cụ (H, U, S, N, T, R, E, L, A, P, K, D, M, G) đăng ký qua `registerCommands` khi ở chế độ Ghi chú; mọi sửa đổi đi qua `commit` nên Ctrl+Z hoàn tác được.
+- Giới hạn: PDF chuẩn lưu trả lời bình luận gộp trong nội dung ghi chú (chưa có liên kết cha–con IRT); tem là khung + chữ chứ chưa phải tem ảnh.

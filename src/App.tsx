@@ -29,6 +29,7 @@ import { EditBar } from "./edit/EditBar";
 import { EditLayer } from "./edit/EditLayer";
 import { EditPanel } from "./edit/EditPanel";
 import { useEdit } from "./edit/store";
+import { AnnotationPanel } from "./annotations/AnnotationPanel";
 import { pickPdf, takeLaunchFiles } from "./lib/api";
 import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
@@ -180,7 +181,7 @@ export function App() {
             <Resizer side="right" onDrag={(w) => s.dragPanel("right", w)} />
             <aside className="panel right" style={{ width: s.rightWidth }} aria-label="Thuộc tính">
               <h2>Thuộc tính</h2>
-              {s.mode === "edit" ? <EditPanel /> : <div className="body">Chọn một đối tượng để xem thuộc tính.</div>}
+              {s.mode === "edit" ? <EditPanel /> : s.mode === "annotate" ? <AnnotationPanel /> : <div className="body">Chọn một đối tượng để xem thuộc tính.</div>}
             </aside>
           </>
         )}
