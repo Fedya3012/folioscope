@@ -1,0 +1,65 @@
+/* Page Organizer: lưới thumbnail lớn (bản thiết kế mục D) */
+.org { height: 100%; display: flex; flex-direction: column; position: relative; }
+.org-toolbar { flex: none; height: 40px; display: flex; align-items: center; gap: 4px; padding: 0 12px; background: var(--surface-1); border-bottom: 1px solid var(--border-default); white-space: nowrap; overflow-x: auto; }
+.org-toolbar .btn { height: 28px; padding: 0 10px; }
+.org-toolbar .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.org-sep { width: 1px; height: 20px; background: var(--border-default); margin: 0 6px; flex: none; }
+.org-count { font: 400 var(--fs-small)/16px var(--font-mono); color: var(--text-secondary); margin-right: 8px; }
+.org-zoom { width: 96px; accent-color: var(--primary); margin-right: 8px; }
+.org-menu { position: relative; }
+.org-backdrop { position: fixed; inset: 0; z-index: 39; }
+.org-popover { position: absolute; top: 32px; left: 0; z-index: 40; min-width: 180px; padding: 4px; background: var(--surface-3); border: 1px solid var(--border-default); border-radius: var(--r-md); box-shadow: var(--e3); display: flex; flex-direction: column; }
+.org-popover button { text-align: left; border: 0; background: transparent; padding: 6px 10px; border-radius: var(--r-sm); cursor: pointer; }
+.org-popover button:hover { background: var(--state-hover); }
+
+.org-scroll { flex: 1; min-height: 0; overflow: auto; background: var(--bg-canvas); user-select: none; }
+.org-grid { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px 24px; padding: 32px; min-height: 100%; }
+
+.otile { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; cursor: grab; touch-action: none; }
+.obox { position: relative; border-radius: 2px; transition: box-shadow var(--dur-fast) var(--ease), transform var(--dur-moderate) var(--ease), opacity var(--dur-fast); }
+.othumb { position: relative; overflow: hidden; background: #fff; border-radius: 2px; box-shadow: var(--e1); }
+.otile:hover .othumb { box-shadow: var(--e2); }
+.othumb.loading { background: linear-gradient(90deg, #f3f4f7 25%, #e7e9ee 50%, #f3f4f7 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+.othumb img { position: absolute; left: 50%; top: 50%; max-width: none; transition: transform var(--dur-moderate) var(--ease); pointer-events: none; }
+.ofail { position: absolute; inset: 0; display: grid; place-content: center; font-size: var(--fs-caption); color: var(--danger); background: #fff; }
+.otile.sel .obox { outline: 2px solid var(--primary); outline-offset: 3px; }
+.otile.lifted .obox { opacity: .35; }
+.onum { font: 500 var(--fs-caption)/14px var(--font-mono); color: var(--text-tertiary); }
+.otile.sel .onum { color: var(--primary); font-weight: 600; }
+.ogroup { position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 1; }
+
+.ocheck { position: absolute; left: 6px; top: 6px; z-index: 2; margin: 0; width: 16px; height: 16px; accent-color: var(--primary); opacity: 0; cursor: pointer; }
+.otile:hover .ocheck, .otile.sel .ocheck, .ocheck:focus-visible { opacity: 1; }
+.oactions { position: absolute; left: 0; right: 0; bottom: 6px; z-index: 2; display: flex; justify-content: center; gap: 6px; opacity: 0; transition: opacity var(--dur-fast); pointer-events: none; }
+.otile:hover .oactions { opacity: 1; pointer-events: auto; }
+.oactions button { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border-default); background: var(--surface-3); color: var(--text-primary); box-shadow: var(--e1); cursor: pointer; line-height: 1; }
+.oactions button:hover { background: var(--primary-soft); color: var(--primary-soft-text); }
+.oactions button:last-child:hover { background: var(--danger); color: #fff; }
+
+.oline { position: absolute; width: 3px; border-radius: 2px; background: var(--primary); pointer-events: none; z-index: 5; }
+.oline::before, .oline::after { content: ""; position: absolute; left: -2.5px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+.oline::before { top: -4px; }
+.oline::after { bottom: -4px; }
+.omarquee { position: absolute; background: color-mix(in srgb, var(--primary) 8%, transparent); border: 1px solid var(--primary); pointer-events: none; z-index: 4; }
+
+.oghost { position: fixed; z-index: 80; pointer-events: none; transform: translate(-50%, -50%) rotate(-2deg) scale(1.04); }
+.oghost-card { aspect-ratio: 3 / 4; background: #fff; border-radius: 2px; box-shadow: 0 24px 48px -12px rgba(16,24,40,.35); opacity: .92; overflow: hidden; }
+.oghost-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.oghost-badge { position: absolute; right: -10px; top: -10px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--primary); color: var(--primary-on); font: 600 12px/22px var(--font-mono); text-align: center; }
+
+.otoast { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: #1C2028; color: #ECEEF2; box-shadow: var(--e3); max-width: min(560px, 90%); }
+.otoast.error { background: var(--danger); color: #fff; }
+.otoast button { border: 0; background: transparent; color: #9DB4FF; font-weight: 600; cursor: pointer; padding: 0 2px; }
+.otoast.error button { color: #fff; }
+
+.modal-scrim { position: absolute; inset: 0; z-index: 50; background: rgba(15,17,21,.4); display: grid; place-content: center; }
+.modal { width: 440px; max-width: 90vw; padding: 20px; background: var(--surface-3); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--e3); display: flex; flex-direction: column; gap: 10px; }
+.modal h2 { margin: 0; font-size: 20px; line-height: 28px; letter-spacing: -.012em; }
+.modal .muted { margin: 0 0 4px; color: var(--text-secondary); }
+.modal .radio { display: flex; align-items: center; gap: 8px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.inp { height: 32px; border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 0 10px; background: var(--surface-1); color: var(--text-primary); font: inherit; min-width: 0; width: 72px; }
+.inp.wide { width: 100%; }
+.inp:disabled { opacity: .45; }
+.inp:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent); }
+@media (prefers-reduced-motion: reduce) { .obox, .othumb img { transition: none; } }
