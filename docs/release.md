@@ -14,8 +14,8 @@
 ## Cần cung cấp một lần (Settings → Secrets and variables → Actions → New repository secret)
 | Secret | Dùng để | Bắt buộc |
 |---|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | ký gói cập nhật (khoá riêng, đã tạo sẵn; khoá công khai tương ứng nằm trong `tauri.conf.json`) | có |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | mật khẩu khoá trên; khoá hiện tại **không có mật khẩu** nên để trống hoặc không tạo | không |
+| `TAURI_SIGNING_PRIVATE_KEY` | ký gói cập nhật (khoá riêng do chủ dự án tạo trên máy mình; khoá công khai tương ứng nằm trong `tauri.conf.json`) | có |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | mật khẩu khoá trên; để trống nếu lúc tạo khoá không đặt mật khẩu | không |
 | `WINDOWS_CERTIFICATE` | chứng chỉ ký số Windows (`.pfx`) mã hoá base64 | không (xem dưới) |
 | `WINDOWS_CERTIFICATE_PASSWORD` | mật khẩu của file `.pfx` | cùng với trên |
 

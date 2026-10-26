@@ -59,7 +59,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMxRjc4MzRDODQ4QUI4RjcKUldUM3VJcUVUSVAzd1FhVGJtV1RBUnQ1MnpnS1FvdGQ2dktxY0pIMFNNQ0ZUQXo0SXVIV1ZqWGUK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI2NkI5Qzg5RDNGMjM5OUMKUldTY09mTFRpWnhySnYvREJCTTJOWm94Snl6dHRrOUVzL0ErU2hUR3I2d056SUJsSFg2Q1hvaUEK",
       "endpoints": [
         "https://github.com/Fedya3012/folioscope/releases/latest/download/latest.json"
       ],
