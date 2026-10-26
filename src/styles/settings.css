@@ -42,3 +42,27 @@
 .toast { position: absolute; bottom: 16px; right: 16px; padding: 8px 14px; border-radius: 10px; background: #1C2028; color: #ECEEF2; font-size: var(--fs-small); box-shadow: var(--e3); }
 .set-search input { appearance: none; -webkit-appearance: none; box-shadow: none !important; }
 .set-search input::-webkit-search-cancel-button { display: none; }
+
+/* Bảng lệnh (Command Palette) */
+.palette-backdrop { align-items: flex-start; padding-top: 12vh; }
+.palette { width: min(640px, calc(100vw - 32px)); max-height: 70vh; display: flex; flex-direction: column; background: var(--surface-3); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--e3); overflow: hidden; }
+.palette-input { display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 52px; border-bottom: 1px solid var(--border-default); color: var(--text-tertiary); }
+.palette-input input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: 16px; }
+.palette ul { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+.palette li { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 40px; padding: 0 10px; border-radius: var(--r-md); cursor: pointer; }
+.palette li[aria-selected="true"] { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.pal-label { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.pal-label small { color: var(--text-tertiary); font-size: var(--fs-caption); }
+.palette kbd, .key-chip { font: inherit; font-size: var(--fs-small); padding: 2px 8px; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px; background: var(--surface-1); color: var(--text-secondary); white-space: nowrap; }
+.palette .pal-empty { color: var(--text-tertiary); cursor: default; justify-content: center; }
+.palette footer { padding: 8px 16px; border-top: 1px solid var(--border-default); color: var(--text-tertiary); font-size: var(--fs-caption); }
+
+/* Phím tắt trong Cài đặt */
+.key-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); }
+.key-row .key-name { display: flex; flex-direction: column; min-width: 0; }
+.key-row .key-name small { color: var(--text-tertiary); font-size: var(--fs-caption); }
+.key-row .key-name .warn { color: var(--danger, #d64545); }
+.key-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.key-chip.recording { border-color: var(--primary); color: var(--primary); }
+.key-group { margin: 16px 0 4px; font-size: var(--fs-small); font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .04em; }
+.key-toolbar { display: flex; gap: 8px; margin: 4px 0 8px; }

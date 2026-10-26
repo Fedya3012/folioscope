@@ -11,6 +11,9 @@ import { CombineDialog } from "./components/CombineDialog";
 import { Home } from "./components/Home";
 import { Icon } from "./components/Icon";
 import { Settings } from "./components/Settings";
+import { CommandPalette } from "./components/CommandPalette";
+import { usePalette } from "./lib/paletteStore";
+import { loadKeymap } from "./lib/keymap";
 import { routeDrop } from "./lib/recent";
 import { installShortcuts } from "./lib/shortcuts";
 import { registerAppCommands } from "./appCommands";
@@ -54,7 +57,8 @@ export function App() {
 
   // Một bộ nghe phím duy nhất; các lệnh nằm ở appCommands.ts (và mỗi màn hình đăng ký thêm lệnh của nó).
   useEffect(() => installShortcuts(), []);
-  useEffect(() => registerAppCommands(() => void openRef.current()), []);
+  useEffect(() => { const off = registerAppCommands(() => void openRef.current()); loadKeymap(); return off; }, []);
+  const paletteOpen = usePalette((p) => p.open);
 
   const openRef = useRef<() => Promise<void>>(async () => {});
   // null = đóng; mảng = mở hộp thoại Gộp file với các file ban đầu này.
@@ -206,6 +210,7 @@ export function App() {
       <PasswordDialog />
       <Toaster />
       {s.settingsOpen && <Settings />}
+      {paletteOpen && <CommandPalette />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}
       {combine && <CombineDialog initial={combine} onClose={closeCombine} onOpenResult={(p) => void s.load(p)} />}
     </div>

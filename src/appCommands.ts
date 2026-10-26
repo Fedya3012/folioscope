@@ -1,6 +1,7 @@
 import { SEARCH_INPUT_ID } from "./components/SearchPanel";
 import { registerCommands, type Command } from "./lib/shortcuts";
 import { redo, registerUndoScope, undo } from "./lib/undo";
+import { usePalette } from "./lib/paletteStore";
 import { useAnnot } from "./annotations/store";
 import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
@@ -18,6 +19,8 @@ export function registerAppCommands(openFile: () => void): () => void {
   const cmds: Command[] = [
     { id: "file.open", label: "Mở file…", group: "Tệp", keys: ["Mod+O"], typing: "allow", run: openFile },
     { id: "settings.open", label: "Cài đặt", group: "Ứng dụng", keys: ["Mod+,"], typing: "allow", run: () => st().setSettingsOpen(true) },
+    { id: "palette.open", label: "Bảng lệnh", group: "Ứng dụng", keys: ["Mod+Shift+P"], typing: "allow", run: () => usePalette.getState().setOpen(true) },
+    { id: "theme.toggle", label: "Đổi chủ đề sáng/tối", group: "Giao diện", keys: [], typing: "allow", run: () => st().toggleTheme() },
     { id: "panel.left", label: "Ẩn/hiện bảng trái", group: "Giao diện", keys: ["Mod+\\", "F4"], typing: "allow", run: () => st().togglePanel("left") },
     { id: "panel.right", label: "Ẩn/hiện bảng phải", group: "Giao diện", keys: ["Mod+Shift+\\"], typing: "allow", run: () => st().togglePanel("right") },
     { id: "view.zoomIn", label: "Phóng to", group: "Xem", keys: ["Mod+=", "Mod++"], typing: "allow", run: () => st().zoomBy(1) },
