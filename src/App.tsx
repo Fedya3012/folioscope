@@ -10,6 +10,7 @@ import { Viewer } from "./components/Viewer";
 import { CombineDialog } from "./components/CombineDialog";
 import { Home } from "./components/Home";
 import { Icon } from "./components/Icon";
+import { ConfirmClose, TabBar } from "./components/TabBar";
 import { Settings } from "./components/Settings";
 import { routeDrop } from "./lib/recent";
 import { installShortcuts } from "./lib/shortcuts";
@@ -96,16 +97,12 @@ export function App() {
   const open = async () => { const p = await pickPdf(); if (p) await s.load(p); };
   openRef.current = open;
   const onHome = s.view === "home" || !s.info;
-  const fileName = s.path?.split(/[\\/]/).pop();
 
   return (
     <div className={`shell${onHome ? " on-home" : ""}`}>
       <header className="titlebar">
         <strong>Folioscope</strong>
-        <div className="tabs" role="tablist" aria-label="Tài liệu" style={{ display: "contents" }}>
-          <button role="tab" className="tab home-tab" aria-selected={onHome} aria-label="Home" title="Home" onClick={() => s.setView("home")}><Icon name="home" /></button>
-          {fileName && <button role="tab" className="tab" aria-selected={!onHome} title={s.path ?? undefined} onClick={() => s.setView("doc")}>{fileName}</button>}
-        </div>
+        <TabBar onOpen={() => void openRef.current()} />
         <span className="spacer" />
         <button className="btn ghost icon" aria-label="Cài đặt (Ctrl+,)" title="Cài đặt (Ctrl+,)" onClick={() => s.setSettingsOpen(true)}><Icon name="settings" /></button>
         <button className="btn ghost icon" aria-label="Đổi giao diện sáng/tối" onClick={s.toggleTheme}>{s.theme === "dark" ? "☀" : "☾"}</button>
@@ -204,6 +201,7 @@ export function App() {
       </footer>
       </>)}
       <PasswordDialog />
+      <ConfirmClose />
       <Toaster />
       {s.settingsOpen && <Settings />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}

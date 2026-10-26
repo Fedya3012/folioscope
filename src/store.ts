@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { LEFT, RIGHT, ZOOM_MAX, ZOOM_MIN, clamp, resolvePanelWidth, stepZoom } from "./lib/layout";
 import { getOutline, openDocument, probeFiles, searchText, type DocumentInfo, type OutlineItem, type SearchHit } from "./lib/api";
 import { db } from "./lib/db";
+import { useAnnot } from "./annotations/store";
+import { useOrganizer } from "./organizerStore";
+import { addTab, parsePositions, savePosition, moveTab, type ReadPos } from "./lib/tabs";
 import { addRecent, parseRecent, removeRecent, togglePin, trimRecent, type RecentFile } from "./lib/recent";
 import { DEFAULT_SETTINGS, initialZoom, resolveTheme, sanitizeSettings, type Settings } from "./lib/settings";
 import { isPageTheme, passwordFailure, stepIndex, type Fit, type PageTheme, type ViewMode } from "./lib/viewer";
@@ -39,6 +42,18 @@ const savedPageTheme = (): PageTheme => {
   return isPageTheme(t) ? t : "normal";
 };
 
+const POS_KEY = "folioscope.positions";
+
+/** Trạng thái của một tài liệu đang mở nhưng không phải tab hiện tại; chuyển tab là chép qua lại giữa đây và các store. */
+type Session = {
+  info: DocumentInfo; outline: OutlineItem[]; mode: Mode;
+  currentPage: number; zoom: number; fit: Fit; viewMode: ViewMode;
+  annot: Pick<ReturnType<typeof useAnnot.getState>, "items" | "past" | "future" | "dirty">;
+  org: Partial<ReturnType<typeof useOrganizer.getState>>;
+};
+const sessions = new Map<string, Session>();
+const ORG_KEYS = ["baseInfo", "basePath", "items", "selected", "anchor", "history"] as const;
+
 /** File đang chờ mật khẩu; `wrong` là lần nhập trước bị sai. */
 export type PasswordPrompt = { path: string; wrong: boolean };
 
@@ -53,6 +68,18 @@ interface State {
   settings: Settings; settingsOpen: boolean;
   recent: RecentFile[];
   setView(v: "home" | "doc"): void;
+  /** Các tab tài liệu theo thứ tự (Home luôn ghim đầu, không nằm trong đây). `path` là tab đang chọn. */
+  tabs: string[];
+  /** Tab nền có thay đổi chưa lưu (tab đang chọn xem trực tiếp ở các store ghi chú/trang). */
+  tabDirty: Record<string, boolean>;
+  /** Các tab đang chờ người dùng xác nhận đóng vì còn thay đổi chưa lưu. */
+  closePrompt: string[] | null;
+  activateTab(path: string): void;
+  closeTab(path: string): void;
+  closeOtherTabs(path: string): void;
+  confirmClose(): void;
+  cancelClose(): void;
+  reorderTab(from: number, to: number): void;
   setSettingsOpen(open: boolean): void;
   updateSettings(patch: Partial<Settings>): void;
   resetSettings(): void;
@@ -86,12 +113,74 @@ interface State {
   goToHit(i: number): void;
 }
 
+const readPositions = () => parsePositions(db.getJson(POS_KEY));
+
+/** Ghi vị trí đọc của tài liệu đang chọn (trang, zoom, kiểu xem). */
+function rememberPosition() {
+  const { path, info, currentPage, zoom, fit, viewMode } = useStore.getState();
+  if (!path || !info) return;
+  const pos: ReadPos = { page: currentPage, zoom, fit: fit === "width" || fit === "page" ? fit : null, viewMode: viewMode === "single" ? "single" : "continuous", at: Date.now() };
+  db.setJson(POS_KEY, savePosition(readPositions(), path, pos));
+}
+
+const liveDirty = () => useAnnot.getState().dirty || useOrganizer.getState().history.past.length > 0;
+/** Tab có thay đổi chưa lưu (tab đang chọn lấy trực tiếp từ store, tab nền lấy lúc rời đi). */
+export const isDirty = (path: string): boolean => (path === useStore.getState().path ? liveDirty() : !!useStore.getState().tabDirty[path]);
+
+/** Cất trạng thái của tài liệu đang chọn trước khi rời sang tab khác. */
+function capture() {
+  const s = useStore.getState();
+  if (!s.path || !s.info) return;
+  rememberPosition();
+  const a = useAnnot.getState(), o = useOrganizer.getState();
+  const org: Session["org"] = {};
+  for (const k of ORG_KEYS) (org as Record<string, unknown>)[k] = o[k];
+  sessions.set(s.path, {
+    info: s.info, outline: s.outline, mode: s.mode, currentPage: s.currentPage, zoom: s.zoom, fit: s.fit, viewMode: s.viewMode,
+    annot: { items: a.items, past: a.past, future: a.future, dirty: a.dirty }, org,
+  });
+  useStore.setState({ tabDirty: { ...s.tabDirty, [s.path]: liveDirty() } });
+}
+
+/** Đưa trạng thái đã cất của một tab trở lại các store. */
+function restore(path: string, snap: Session, view: "home" | "doc") {
+  searchGen++;
+  useAnnot.getState().reset();
+  useAnnot.setState(snap.annot);
+  useOrganizer.setState(snap.org);
+  const s = useStore.getState();
+  useStore.setState({
+    path, info: snap.info, view, error: null, mode: snap.mode, currentPage: snap.currentPage, zoom: snap.zoom, fit: snap.fit,
+    viewMode: snap.viewMode, outline: snap.outline, search: noSearch, nav: { page: snap.currentPage, y: null, nonce: s.nav.nonce + 1 },
+  });
+}
+
+/** Đóng các tab (đã xác nhận xong). Đóng tab đang chọn thì chuyển sang tab kề; hết tab thì về Home. */
+function closeNow(paths: string[]) {
+  const s = useStore.getState();
+  const gone = new Set(paths);
+  if (gone.has(s.path ?? "")) rememberPosition();
+  const remaining = s.tabs.filter((p) => !gone.has(p));
+  const tabDirty = { ...s.tabDirty };
+  paths.forEach((p) => { sessions.delete(p); delete tabDirty[p]; });
+  useStore.setState({ tabs: remaining, tabDirty });
+  if (!s.path || !gone.has(s.path)) return;
+  const at = s.tabs.indexOf(s.path) - s.tabs.slice(0, s.tabs.indexOf(s.path)).filter((p) => gone.has(p)).length;
+  const next = remaining[Math.min(at, remaining.length - 1)];
+  const snap = next ? sessions.get(next) : undefined;
+  if (next && snap) { restore(next, snap, s.view); return; }
+  searchGen++;
+  useAnnot.getState().reset();
+  useOrganizer.getState().reset();
+  useStore.setState({ path: null, info: null, outline: [], search: noSearch, view: "home", mode: "view", currentPage: 0 });
+}
+
 const initialSettings = savedSettings();
 let prefersDark = systemDark();
 
 export const useStore = create<State>((set, get) => ({
   theme: resolveTheme(initialSettings.theme, prefersDark), pageTheme: savedPageTheme(), passwordPrompt: null, mode: "view",
-  view: "home", settings: initialSettings, settingsOpen: false,
+  view: "home", settings: initialSettings, settingsOpen: false, tabs: [], tabDirty: {}, closePrompt: null,
   recent: parseRecent(readJson(RECENT_KEY)),
   leftOpen: true, leftWidth: LEFT.def, rightOpen: false, rightWidth: RIGHT.def,
   path: null, info: null, error: null, currentPage: 0, zoom: 1,
@@ -130,11 +219,25 @@ export const useStore = create<State>((set, get) => ({
     set(p === "left" ? { leftOpen: r.open, leftWidth: r.width } : { rightOpen: r.open, rightWidth: r.width });
   },
   async load(path, password) {
+    // Tài liệu đã mở ở tab khác thì chỉ chuyển sang tab đó (đừng mở lại bản thứ hai).
+    if (!password && path !== get().path && get().tabs.includes(path)) { get().activateTab(path); return; }
     try {
       const info = await openDocument(path, password);
       searchGen++;
+      const prev = get().path;
+      const switching = prev !== path;
+      if (switching) capture();
       const z = initialZoom(get().settings.defaultZoom);
-      set({ path, info, view: "doc", error: null, passwordPrompt: null, currentPage: 0, fit: z.fit, zoom: z.zoom ?? get().zoom, outline: [], search: noSearch, nav: { page: 0, y: null, nonce: get().nav.nonce + 1 } });
+      // Mở lại file đã đọc trước đây thì quay về trang, mức zoom và kiểu xem lần cuối.
+      const pos = switching ? readPositions()[path] : undefined;
+      const page = pos ? Math.min(pos.page, info.page_count - 1) : 0;
+      if (switching) { useAnnot.getState().reset(); }
+      set({
+        path, info, view: "doc", error: null, passwordPrompt: null, currentPage: page,
+        fit: pos ? pos.fit : z.fit, zoom: pos ? pos.zoom : z.zoom ?? get().zoom, viewMode: pos ? pos.viewMode : get().viewMode,
+        outline: [], search: noSearch, nav: { page, y: null, nonce: get().nav.nonce + 1 },
+        tabs: addTab(get().tabs, path, prev),
+      });
       // Mục lục có thể không có hoặc hỏng; không để nó cản việc mở file.
       void get().noteRecent(path, info.page_count);
       getOutline(path).then((outline) => { if (get().path === path) set({ outline }); }).catch(() => {});
@@ -145,6 +248,27 @@ export const useStore = create<State>((set, get) => ({
       else set({ error: String(e), passwordPrompt: null });
     }
   },
+  activateTab(path) {
+    if (path === get().path) { set({ view: "doc" }); return; }
+    const snap = sessions.get(path);
+    if (!snap) { void get().load(path); return; }
+    capture();
+    restore(path, snap, "doc");
+  },
+  closeTab(path) {
+    if (!get().tabs.includes(path)) return;
+    if (isDirty(path)) set({ closePrompt: [path] });
+    else closeNow([path]);
+  },
+  closeOtherTabs(path) {
+    const others = get().tabs.filter((p) => p !== path);
+    if (!others.length) return;
+    if (others.some(isDirty)) set({ closePrompt: others });
+    else closeNow(others);
+  },
+  confirmClose() { const ps = get().closePrompt; set({ closePrompt: null }); if (ps) closeNow(ps); },
+  cancelClose: () => set({ closePrompt: null }),
+  reorderTab: (from, to) => set({ tabs: moveTab(get().tabs, from, to) }),
   async noteRecent(path, pages) {
     const { recentLimit } = get().settings;
     const put = (size: number | null) => {
@@ -199,3 +323,12 @@ export const useStore = create<State>((set, get) => ({
     get().goToPage(hit.page, Math.min(...hit.rects.map((r) => r[1])));
   },
 }));
+
+// Nhớ vị trí đọc: ghi sau khi người dùng ngừng cuộn/zoom một lúc, và khi đóng cửa sổ.
+let posTimer: ReturnType<typeof setTimeout> | undefined;
+useStore.subscribe((s, p) => {
+  if (s.path === p.path && s.currentPage === p.currentPage && s.zoom === p.zoom && s.fit === p.fit && s.viewMode === p.viewMode) return;
+  clearTimeout(posTimer);
+  posTimer = setTimeout(rememberPosition, 800);
+});
+if (typeof window !== "undefined") window.addEventListener("pagehide", rememberPosition);
