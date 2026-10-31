@@ -17,6 +17,8 @@ export type Settings = {
   /** Tự hỏi bản mới mỗi lần mở app (chỉ hỏi, không tự cài). */
   autoCheckUpdate: boolean;
   startup: Startup;
+  /** Mục "Combine files in Folioscope..." trong menu chuột phải của Explorer (Windows). */
+  explorerMenu: boolean;
   recentLimit: number;
   theme: ThemePref;
   accent: Accent;
@@ -43,7 +45,7 @@ export type Settings = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  userName: "", autoCheckUpdate: true, startup: "home", recentLimit: 20,
+  userName: "", autoCheckUpdate: true, startup: "home", explorerMenu: true, recentLimit: 20,
   theme: "system", accent: "cobalt", uiSize: 13, density: "comfortable", reduceMotion: false,
   defaultZoom: "width", defaultViewMode: "continuous",
   authorName: "", unit: "mm", snapToGrid: false, autoOpenComments: true,
@@ -76,6 +78,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     userName: typeof r.userName === "string" ? r.userName.slice(0, 60) : d.userName,
     autoCheckUpdate: bool(r.autoCheckUpdate, d.autoCheckUpdate),
     startup: oneOf(r.startup, ["home", "last"] as const, d.startup),
+    explorerMenu: bool(r.explorerMenu, d.explorerMenu),
     recentLimit: oneOf(r.recentLimit, RECENT_LIMITS, d.recentLimit),
     theme: oneOf(r.theme, ["light", "dark", "system"] as const, d.theme),
     accent: oneOf(r.accent, ACCENTS.map((a) => a.id), d.accent),

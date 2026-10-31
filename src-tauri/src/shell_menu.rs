@@ -73,9 +73,17 @@ mod imp {
         Ok(st.status.success())
     }
 
+    /// "Đã cài" chỉ khi mục trỏ đúng file chạy hiện tại; app đổi chỗ hoặc cập nhật thì báo chưa cài để tự đăng ký lại.
     pub fn status() -> MenuStatus {
-        let q = vec!["query".to_string(), verb_key("pdf")];
-        MenuStatus { supported: true, installed: reg(&q).unwrap_or(false) }
+        let exe = std::env::current_exe().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
+        let q = vec!["query".to_string(), format!(r"{}\command", verb_key("pdf")), "/ve".into()];
+        let installed = Command::new("reg")
+            .args(&q)
+            .creation_flags(0x0800_0000)
+            .output()
+            .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains(&format!("\"{exe}\" --combine")))
+            .unwrap_or(false);
+        MenuStatus { supported: true, installed }
     }
     pub fn install() -> Result<(), String> {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy().into_owned();

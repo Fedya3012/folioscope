@@ -50,7 +50,8 @@
         "languages": [
           "English"
         ],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "windows/hooks.nsh"
       },
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
