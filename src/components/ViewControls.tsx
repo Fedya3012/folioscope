@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ZOOM_PRESETS, zoomChoice } from "../lib/viewer";
 import { useStore } from "../store";
+import { GOTO_INPUT_ID } from "../appCommands";
 
 /** Thời gian không đụng chuột thì thanh mờ đi (ms), theo thiết kế: 2 giây. */
 const IDLE_MS = 2000;
@@ -34,7 +35,17 @@ export function ViewControls() {
       onPointerEnter={wake} onPointerMove={wake} onFocus={wake}>
       <button className="btn ghost icon" aria-label="Trang trước" disabled={s.currentPage === 0} onClick={() => s.goToPage(s.currentPage - 1)}>↑</button>
       <button className="btn ghost icon" aria-label="Trang sau" disabled={s.currentPage >= last} onClick={() => s.goToPage(s.currentPage + 1)}>↓</button>
-      <span className="vc-pages">{s.currentPage + 1} / {s.info.page_count}</span>
+      <span className="vc-pages">
+        <input id={GOTO_INPUT_ID} aria-label="Đi tới trang" inputMode="numeric" key={s.currentPage} defaultValue={s.currentPage + 1}
+          style={{ width: "3ch", textAlign: "right", background: "transparent", border: "none", color: "inherit", font: "inherit" }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") (e.target as HTMLInputElement).blur();
+            if (e.key !== "Enter") return;
+            const n = parseInt((e.target as HTMLInputElement).value, 10);
+            if (Number.isFinite(n)) s.goToPage(Math.max(0, Math.min(last, n - 1)));
+            (e.target as HTMLInputElement).blur();
+          }} /> / {s.info.page_count}
+      </span>
       <span className="vc-sep" />
       <button className="btn ghost icon" aria-label="Thu nhỏ" onClick={() => s.zoomBy(-1)}>−</button>
       <select aria-label="Mức zoom" value={choice} onChange={(e) => onZoomChoice(e.target.value)}>

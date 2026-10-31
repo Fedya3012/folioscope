@@ -187,6 +187,13 @@ export function Organizer() {
     { id: "pages.delete", label: "Xoá trang đã chọn", group: "Trang", keys: ["Delete", "Backspace"], run: () => o.remove() },
     { id: "pages.rotateRight", label: "Xoay phải", group: "Trang", keys: ["R"], run: () => o.rotate(90) },
     { id: "pages.rotateLeft", label: "Xoay trái", group: "Trang", keys: ["Shift+R"], run: () => o.rotate(-90) },
+    { id: "pages.save", label: "Lưu thứ tự trang", group: "Trang", keys: ["Mod+S", "Mod+Shift+S"], typing: "allow", run: () => { void onSave(); } },
+    { id: "pages.insertBlank", label: "Chèn trang trắng", group: "Trang", keys: ["Mod+Shift+T"], run: () => o.insertBlank() },
+    { id: "pages.insertFile", label: "Chèn trang từ file…", group: "Trang", keys: ["Mod+Shift+I"], run: () => { void o.insert("file"); } },
+    { id: "pages.deleteKey", label: "Xoá trang đã chọn (Ctrl+Shift+D)", group: "Trang", keys: ["Mod+Shift+D"], run: () => o.remove() },
+    { id: "pages.rotateCw", label: "Xoay phải (Ctrl+Shift+=)", group: "Trang", keys: ["Mod+Shift+="], run: () => o.rotate(90) },
+    { id: "pages.rotateCcw", label: "Xoay trái (Ctrl+Shift+-)", group: "Trang", keys: ["Mod+Shift+-"], run: () => o.rotate(-90) },
+    { id: "pages.crop", label: "Cắt lề…", group: "Trang", keys: ["C"], run: () => setDialog("crop") },
     { id: "pages.clearSelection", label: "Bỏ chọn", group: "Trang", keys: ["Escape"], run: () => { o.clearSelection(); return false; } },
   ]), [o]);
 

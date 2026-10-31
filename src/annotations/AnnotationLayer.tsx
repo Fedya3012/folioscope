@@ -8,7 +8,7 @@ import { centroid, labelFor } from "./measure";
 import { snapToLines, unionRect } from "./snap";
 import { useAnnot, newId } from "./store";
 import { FloatingToolbar } from "./FloatingToolbar";
-import { STAMPS, TOOLS, isMarkup, isPolyMeasure, type Annotation, type Pt } from "./types";
+import { DRAW_CYCLE, MARKUP_CYCLE, STAMPS, TOOLS, isMarkup, isPolyMeasure, type Annotation, type Pt } from "./types";
 
 /** Lớp chữ của từng trang, nạp một lần cho mỗi (file, trang) để kéo chuột bám dòng chữ không phải hỏi lại. */
 const runCache = new Map<string, Promise<TextRun[]>>();
@@ -51,8 +51,12 @@ export function AnnotationLayer() {
         run: () => { const a = useAnnot.getState(); if (!a.selectedId) return false; a.remove(a.selectedId); },
       },
       ...TOOLS.map((t) => ({
-        id: `annotate.tool.${t.id}`, label: `Công cụ: ${t.label}`, group: "Ghi chú", keys: [t.hint],
+        id: `annotate.tool.${t.id}`, label: `Công cụ: ${t.label}`, group: "Ghi chú", keys: t.id === "stamp" ? ["K", "J"] : t.hint ? [t.hint] : [],
         run: () => useAnnot.getState().setTool(t.id),
+      })),
+      ...([["markup", "Xoay vòng Tô sáng / Gạch chân / Gạch ngang", "Shift+U", MARKUP_CYCLE], ["draw", "Xoay vòng công cụ vẽ", "Shift+D", DRAW_CYCLE]] as const).map(([id, label, key, group]) => ({
+        id: `annotate.cycle.${id}`, label, group: "Ghi chú", keys: [key],
+        run: () => { const a = useAnnot.getState(); a.setTool(group[(group.indexOf(a.tool) + 1) % group.length]); },
       })),
       { id: "annotate.escape", label: "Bỏ chọn ghi chú", group: "Ghi chú", keys: ["Escape"], run: () => { const a = useAnnot.getState(); a.select(null); a.setTool("select"); return false; } },
     ]);
