@@ -36,21 +36,25 @@ export interface Annotation {
 export const COLORS = ["#FFD60A", "#FF453A", "#30D158", "#3D63EE", "#BF5AF2", "#14171C"] as const;
 export const DEFAULT_COLOR = COLORS[0];
 
+/** Nhóm công cụ xoay vòng bằng Shift+U / Shift+D. */
+export const MARKUP_CYCLE: Tool[] = ["highlight", "underline", "strikeout"];
+export const DRAW_CYCLE: Tool[] = ["ink", "rect", "ellipse", "line", "arrow"];
+
 export const TOOLS: { id: Tool; label: string; hint: string }[] = [
   { id: "select", label: "Chọn", hint: "V" },
-  { id: "highlight", label: "Tô sáng", hint: "H" },
-  { id: "underline", label: "Gạch chân", hint: "U" },
-  { id: "strikeout", label: "Gạch ngang", hint: "S" },
-  { id: "note", label: "Ghi chú", hint: "N" },
-  { id: "text", label: "Hộp văn bản", hint: "T" },
+  { id: "highlight", label: "Tô sáng", hint: "U" },
+  { id: "underline", label: "Gạch chân", hint: "" },
+  { id: "strikeout", label: "Gạch ngang", hint: "" },
+  { id: "note", label: "Ghi chú", hint: "S" },
+  { id: "text", label: "Hộp văn bản", hint: "X" },
   { id: "rect", label: "Chữ nhật", hint: "R" },
   { id: "ellipse", label: "Elip", hint: "E" },
   { id: "line", label: "Đường thẳng", hint: "L" },
   { id: "arrow", label: "Mũi tên", hint: "A" },
-  { id: "ink", label: "Vẽ tay", hint: "P" },
+  { id: "ink", label: "Vẽ tay", hint: "D" },
   { id: "stamp", label: "Tem", hint: "K" },
-  { id: "distance", label: "Đo khoảng cách", hint: "D" },
-  { id: "perimeter", label: "Đo chu vi", hint: "M" },
+  { id: "distance", label: "Đo khoảng cách", hint: "M" },
+  { id: "perimeter", label: "Đo chu vi", hint: "Shift+M" },
   { id: "area", label: "Đo diện tích", hint: "G" },
 ];
 

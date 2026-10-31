@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ACROBAT_PRESET, applyPreset, conflictsFor, resetAllKeys, resetKeys, setKeys } from "../lib/keymap";
 import { comboFromEvent, formatCombo, getKeyOverrides, listCommands, parseCombo } from "../lib/shortcuts";
 import { AI_MODELS } from "../lib/ai";
-import { aiKeyClear, aiKeySet, aiKeyStatus } from "../lib/api";
+import { aiKeyClear, aiKeySet, aiKeyStatus, shellMenuInstall, shellMenuUninstall } from "../lib/api";
 import { ACCENTS, RECENT_LIMITS, UI_SIZES, type Settings as S } from "../lib/settings";
 import { toast } from "../lib/toast";
 import { useStore } from "../store";
@@ -194,6 +194,10 @@ export function Settings() {
       control: <input className="field" value={st.userName} maxLength={60} placeholder="Ví dụ: Fedya" aria-label="Tên của bạn" onChange={(e) => set({ userName: e.target.value })} /> },
     { id: "startup", group: "general", label: "Khi khởi động", desc: "Mở màn hình Home, hoặc mở lại file đã xem gần nhất.", keywords: "khởi động mở",
       control: <Seg label="Khi khởi động" value={st.startup} onChange={(startup) => set({ startup })} options={[["home", "Màn hình Home"], ["last", "File gần nhất"]]} /> },
+    { id: "explorer", group: "general", label: "Menu chuột phải trong Explorer", desc: "Thêm mục “Combine files in Folioscope...” khi bấm chuột phải vào file đã chọn. Windows 11: nằm trong “Show more options”.", keywords: "chuột phải explorer combine gộp context menu",
+      control: <Toggle label="Menu chuột phải trong Explorer" on={st.explorerMenu} onChange={(on) => {
+        (on ? shellMenuInstall() : shellMenuUninstall()).then(() => set({ explorerMenu: on })).catch((e) => toast.error(String(e)));
+      }} /> },
     { id: "recent", group: "general", label: "Số file gần đây", desc: "File đã ghim không bị tính vào giới hạn.", keywords: "gần đây lịch sử",
       control: <Seg label="Số file gần đây" value={st.recentLimit} onChange={(recentLimit) => set({ recentLimit })} options={RECENT_LIMITS.map((n) => [n, String(n)] as [number, string])} /> },
 

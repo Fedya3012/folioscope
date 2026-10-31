@@ -24,7 +24,7 @@ export function AnnotateBar() {
   return (
     <div className="annot-bar" role="toolbar" aria-label="Công cụ ghi chú">
       {TOOLS.map((t) => (
-        <button key={t.id} aria-pressed={a.tool === t.id} title={`${t.label} (${t.hint})`} onClick={() => a.setTool(t.id)}>{t.label}</button>
+        <button key={t.id} aria-pressed={a.tool === t.id} title={t.hint ? `${t.label} (${t.hint})` : t.label} onClick={() => a.setTool(t.id)}>{t.label}</button>
       ))}
       <span className="sep" />
       {COLORS.map((c) => (

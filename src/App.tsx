@@ -36,7 +36,7 @@ import { EditLayer } from "./edit/EditLayer";
 import { EditPanel } from "./edit/EditPanel";
 import { useEdit } from "./edit/store";
 import { AnnotationPanel } from "./annotations/AnnotationPanel";
-import { pickPdf, takeLaunchFiles, type ConvertTarget } from "./lib/api";
+import { pickPdf, shellMenuInstall, shellMenuStatus, takeLaunchFiles, type ConvertTarget } from "./lib/api";
 import { useOrganizer } from "./organizerStore";
 import { useStore, type Mode } from "./store";
 
@@ -122,6 +122,13 @@ export function App() {
     const sub = listen("launch-combine", () => void pull());
     return () => { void sub.then((un) => un()); };
   }, []);
+
+  // Giữ mục menu chuột phải khớp với cài đặt (cài lần đầu, hoặc đăng ký lại khi app đổi chỗ / vừa cập nhật).
+  const explorerMenu = useStore((s) => s.settings.explorerMenu);
+  useEffect(() => {
+    if (!explorerMenu) return;
+    shellMenuStatus().then((m) => { if (m.supported && !m.installed) return shellMenuInstall(); }).catch(() => {});
+  }, [explorerMenu]);
 
   // Kéo thả file vào cửa sổ. Khi hộp thoại Gộp file đang mở thì để nó tự xử lý.
   const combineOpen = useRef(false);
