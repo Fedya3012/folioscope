@@ -27,7 +27,7 @@
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
   <Applications>
-    <Application Id="Folioscope" Executable="Folioscope.exe" EntryPoint="Windows.FullTrustApplication"
+    <Application Id="Folioscope" Executable="Folioscope.exe"
                  uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
       <uap:VisualElements DisplayName="Folioscope" Description="Folioscope PDF studio" BackgroundColor="transparent"
                           Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" AppListEntry="none" />
