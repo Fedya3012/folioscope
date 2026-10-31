@@ -53,9 +53,14 @@ pub fn uninstall_commands() -> Vec<Vec<String>> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MenuStatus {
     pub supported: bool,
     pub installed: bool,
+    /// Mục đã nằm ở menu chính của Windows 11 (gói có danh tính đã đăng ký).
+    pub modern: bool,
+    /// Bản cài này có kèm gói Windows 11 (bản tự build lúc phát triển thì không).
+    pub modern_available: bool,
 }
 
 #[cfg(windows)]
@@ -83,7 +88,68 @@ mod imp {
             .output()
             .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains(&format!("\"{exe}\" --combine")))
             .unwrap_or(false);
-        MenuStatus { supported: true, installed }
+        let modern = modern_registered();
+        let modern_available = exe_dir().join("winshell").join("folioscope-shell.msix").is_file();
+        MenuStatus { supported: true, installed: installed || modern, modern, modern_available }
+    }
+
+    fn exe_dir() -> std::path::PathBuf {
+        std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.to_path_buf())).unwrap_or_default()
+    }
+
+    fn powershell(script: &str) -> Result<String, String> {
+        let out = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script])
+            .creation_flags(0x0800_0000)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if out.status.success() {
+            Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+        } else {
+            let err = String::from_utf8_lossy(&out.stderr);
+            Err(err.lines().next().unwrap_or("PowerShell báo lỗi").trim().to_string())
+        }
+    }
+
+    fn modern_registered() -> bool {
+        powershell("(Get-AppxPackage -Name Folioscope.ShellExtension | Measure-Object).Count")
+            .map(|n| n.trim() != "0")
+            .unwrap_or(false)
+    }
+
+    /// Đăng ký gói để mục hiện ở menu chính của Windows 11. Lần đầu phải tin chứng chỉ tự ký của bộ cài
+    /// (Windows hỏi UAC một lần), vì Windows chỉ nạp gói đã ký bởi chứng chỉ đáng tin.
+    pub fn install_modern() -> Result<(), String> {
+        let dir = exe_dir().join("winshell");
+        let (msix, cer) = (dir.join("folioscope-shell.msix"), dir.join("folioscope-shell.cer"));
+        if !msix.is_file() || !cer.is_file() {
+            return Err("bản này không kèm gói menu Windows 11 (chỉ có trong bộ cài chính thức)".into());
+        }
+        let (msix, cer) = (msix.display().to_string().replace('\'', "''"), cer.display().to_string().replace('\'', "''"));
+        let trusted = powershell(&format!(
+            "$c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 '{cer}'; Test-Path (Join-Path Cert:\\LocalMachine\\TrustedPeople $c.Thumbprint)"
+        ))?;
+        if trusted != "True" {
+            powershell(&format!(
+                "Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-Command','Import-Certificate -FilePath \"{cer}\" -CertStoreLocation Cert:\\LocalMachine\\TrustedPeople'"
+            ))?;
+            let again = powershell(&format!(
+                "$c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 '{cer}'; Test-Path (Join-Path Cert:\\LocalMachine\\TrustedPeople $c.Thumbprint)"
+            ))?;
+            if again != "True" { return Err("chưa tin chứng chỉ của Folioscope (bạn đã từ chối hộp thoại xin quyền?)".into()); }
+        }
+        let loc = exe_dir().display().to_string().replace('\'', "''");
+        powershell(&format!("Add-AppxPackage -Path '{msix}' -ExternalLocation '{loc}' -ForceUpdateFromAnyVersion"))?;
+        // Menu mới đã có, bỏ mục cổ điển để không hiện hai lần trong "Show more options".
+        for c in uninstall_commands() { let _ = reg(&c); }
+        Ok(())
+    }
+
+    pub fn uninstall_modern() -> Result<(), String> {
+        if modern_registered() {
+            powershell("Get-AppxPackage -Name Folioscope.ShellExtension | Remove-AppxPackage")?;
+        }
+        Ok(())
     }
     pub fn install() -> Result<(), String> {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy().into_owned();
@@ -94,14 +160,15 @@ mod imp {
     }
     pub fn uninstall() -> Result<(), String> {
         for c in uninstall_commands() { let _ = reg(&c)?; }
-        Ok(())
+        uninstall_modern()
     }
 }
 
 #[cfg(not(windows))]
 mod imp {
     use super::MenuStatus;
-    pub fn status() -> MenuStatus { MenuStatus { supported: false, installed: false } }
+    pub fn status() -> MenuStatus { MenuStatus { supported: false, installed: false, modern: false, modern_available: false } }
+    pub fn install_modern() -> Result<(), String> { Err("menu Windows 11 chỉ có cho Windows".into()) }
     pub fn install() -> Result<(), String> { Err("menu chuột phải hiện chỉ có cho Windows".into()) }
     pub fn uninstall() -> Result<(), String> { Ok(()) }
 }
@@ -110,6 +177,11 @@ mod imp {
 pub fn shell_menu_status() -> MenuStatus { imp::status() }
 #[tauri::command]
 pub fn shell_menu_install() -> Result<(), String> { imp::install() }
+/// Chạy nặng (PowerShell, có thể chờ UAC) nên để ngoài luồng giao diện.
+#[tauri::command]
+pub async fn shell_menu_install_modern() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(imp::install_modern).await.map_err(|e| e.to_string())?
+}
 #[tauri::command]
 pub fn shell_menu_uninstall() -> Result<(), String> { imp::uninstall() }
 

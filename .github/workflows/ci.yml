@@ -26,6 +26,10 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev librsvg2-dev libayatana-appindicator3-dev patchelf tesseract-ocr tesseract-ocr-vie
       - run: npm ci
       - run: npm run fetch-pdfium
+      - name: Dựng menu chuột phải Windows 11
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-shellext.ps1
       - run: npm test
       - run: npx tsc --noEmit
       - name: Rust test

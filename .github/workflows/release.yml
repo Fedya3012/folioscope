@@ -51,6 +51,10 @@ jobs:
         env: { KEY: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" }
         run: '[ -n "$KEY" ] || { echo "Thiếu secret TAURI_SIGNING_PRIVATE_KEY (xem docs/release.md)"; exit 1; }'
       - run: npm run fetch-pdfium
+      - name: Dựng menu chuột phải Windows 11
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-shellext.ps1
 
       # Ký số Windows: chỉ chạy khi đã có chứng chỉ trong secrets. Không có thì bộ cài vẫn ra, chỉ chưa ký
       # (Windows SmartScreen sẽ cảnh báo "nhà phát hành không xác định").

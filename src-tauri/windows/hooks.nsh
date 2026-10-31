@@ -4,6 +4,9 @@
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
+  ; Gói menu Windows 11 (nếu đã bật)
+  nsExec::Exec 'powershell -NoProfile -WindowStyle Hidden -Command "Get-AppxPackage -Name Folioscope.ShellExtension | Remove-AppxPackage"'
+  Pop $0
   !insertmacro FolioscopeVerb pdf
   !insertmacro FolioscopeVerb doc
   !insertmacro FolioscopeVerb docx
