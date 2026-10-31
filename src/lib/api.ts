@@ -37,7 +37,7 @@ export type CombineRequest = {
 };
 export type CombineProgress = { stage: "convert" | "merge" | "optimize" | "write"; current: number; total: number; file: string | null; percent: number };
 export type CombineResult = { output: string; pages: number; bytes: number; converted: number };
-export type MenuStatus = { supported: boolean; installed: boolean };
+export type MenuStatus = { supported: boolean; installed: boolean; modern: boolean; modernAvailable: boolean };
 
 export const probeFiles = (paths: string[], password?: string) =>
   invoke<FileProbe[]>("probe_files", { paths, password: password ?? null });
@@ -74,6 +74,7 @@ export const fileSize = (path: string) => invoke<number>("file_size", { path });
 export const takeLaunchFiles = () => invoke<string[]>("take_launch_files");
 export const shellMenuStatus = () => invoke<MenuStatus>("shell_menu_status");
 export const shellMenuInstall = () => invoke<void>("shell_menu_install");
+export const shellMenuInstallModern = () => invoke<void>("shell_menu_install_modern");
 export const shellMenuUninstall = () => invoke<void>("shell_menu_uninstall");
 
 export const COMBINE_EXTENSIONS = [

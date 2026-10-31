@@ -84,6 +84,7 @@ pub fn run() {
             launch::take_launch_files,
             shell_menu::shell_menu_status,
             shell_menu::shell_menu_install,
+            shell_menu::shell_menu_install_modern,
             shell_menu::shell_menu_uninstall,
             organizer::export_pages,
             db::db_load_all,

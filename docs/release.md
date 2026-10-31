@@ -32,3 +32,10 @@ Nhiều nhà cấp hiện chỉ bán chứng chỉ dạng khoá trên phần c�
 macOS chưa ký/notarize (cần tài khoản Apple Developer); không ảnh hưởng bản Windows.
 
 Ghi chú kỹ thuật: gói cập nhật (`.sig`, `latest.json`) chỉ được tạo khi build phát hành, qua `src-tauri/tauri.release.conf.json`; CI thường không cần khoá ký.
+
+## Menu chuột phải trên Windows 11 (menu chính)
+- Mục cổ điển (`Show more options`) do app tự đăng ký vào HKCU, không cần quyền quản trị (`src-tauri/src/shell_menu.rs`).
+- Để mục hiện ngay ở menu chính, Windows 11 bắt buộc dùng thành phần COM `IExplorerCommand` thuộc một gói có danh tính. `scripts/build-shellext.ps1` (chạy trong CI trên Windows) dựng DLL (`src-tauri/shellext`), đóng gói "thưa" `AppxManifest.xml`, ký bằng **chứng chỉ tự ký** tạo mới mỗi lần build và đưa chung vào bộ cài (`src-tauri/winshell/`).
+- Người dùng bật ở **Cài đặt → Chung → Hiện ở menu chính của Windows 11**. Lần đầu Windows hỏi quyền quản trị để tin chứng chỉ (`Trusted People`); mỗi bản mới có chứng chỉ mới nên sẽ hỏi lại khi bật lại. Gỡ app hoặc tắt công tắc sẽ gỡ gói.
+- Muốn bỏ bước hỏi quyền: ký bằng chứng chỉ thật (Azure Trusted Signing hoặc chứng chỉ OV/EV) thay cho chứng chỉ tự ký trong script.
+- Không thử được trên Linux: kiểm tra trên Windows 11 thật sau khi tải bộ cài từ CI.

@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Folioscope PDF studio"
 edition = "2021"
 
+[workspace]
+members = [".", "shellext"]
+
 [lib]
 name = "folioscope_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
