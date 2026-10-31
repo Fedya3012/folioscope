@@ -23,9 +23,8 @@ foreach ($n in "StoreLogo", "Square150x150Logo", "Square44x44Logo") {
 }
 
 # Công cụ của Windows SDK (có sẵn trên runner windows-latest)
-$bin = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-$makeappx = Join-Path $bin.FullName "makeappx.exe"
-$signtool = Join-Path $bin.FullName "signtool.exe"
+$makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\makeappx.exe" | Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1 -ExpandProperty FullName
+$signtool = Join-Path (Split-Path $makeappx) "signtool.exe"
 
 $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Folioscope" -KeyUsage DigitalSignature -FriendlyName "Folioscope" `
   -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(10) `
