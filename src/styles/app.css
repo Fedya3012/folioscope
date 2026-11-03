@@ -226,3 +226,8 @@ button { font: inherit; color: inherit; }
 .convert-results .path .link { margin-left: 8px; }
 .modal select { height: 32px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); font: inherit; margin-left: 8px; }
 @media (max-width: 720px) { .convert-cols { grid-template-columns: 1fr; } }
+.ctx-menu .sep { height: 1px; margin: 4px 2px; background: var(--border-default); }
+.ctx-menu button.danger { color: var(--danger, #FF453A); }
+.search-recent ul { list-style: none; margin: 0; padding: 0; }
+.search-recent li button { width: 100%; height: 28px; padding: 0 8px; border: 0; background: transparent; text-align: left; cursor: pointer; border-radius: var(--r-sm); }
+.search-recent li button:hover { background: var(--state-hover); }

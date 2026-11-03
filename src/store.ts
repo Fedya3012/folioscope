@@ -8,6 +8,7 @@ import { useOrganizer } from "./organizerStore";
 import { addTab, parsePositions, savePosition, moveTab, type ReadPos } from "./lib/tabs";
 import { addRecent, parseRecent, removeRecent, togglePin, trimRecent, type RecentFile } from "./lib/recent";
 import { DEFAULT_SETTINGS, initialZoom, resolveTheme, sanitizeSettings, type Settings } from "./lib/settings";
+import { pushRecentSearch } from "./lib/recentSearches";
 import { isPageTheme, passwordFailure, stepIndex, type Fit, type PageTheme, type ViewMode } from "./lib/viewer";
 
 export type Theme = "light" | "dark";
@@ -17,10 +18,10 @@ export type LeftTab = "thumbs" | "outline" | "search";
 export type Tool = "select" | "hand";
 /** Yêu cầu cuộn tới một vị trí; `nonce` đổi mỗi lần để yêu cầu lặp lại vẫn được xử lý. */
 export type NavTarget = { page: number; y: number | null; nonce: number };
-export type SearchState = { query: string; matchCase: boolean; hits: SearchHit[]; active: number; busy: boolean; truncated: boolean; error: string | null };
+export type SearchState = { query: string; matchCase: boolean; wholeWord: boolean; hits: SearchHit[]; active: number; busy: boolean; truncated: boolean; error: string | null };
 
 let searchGen = 0;
-const noSearch: SearchState = { query: "", matchCase: false, hits: [], active: -1, busy: false, truncated: false, error: null };
+const noSearch: SearchState = { query: "", matchCase: false, wholeWord: false, hits: [], active: -1, busy: false, truncated: false, error: null };
 
 const SETTINGS_KEY = "folioscope.settings", RECENT_KEY = "folioscope.recent";
 
@@ -110,7 +111,7 @@ interface State {
   setTool(t: Tool): void;
   openLeftTab(t: LeftTab): void;
   goToPage(i: number, y?: number | null): void;
-  runSearch(query: string, matchCase: boolean): Promise<void>;
+  runSearch(query: string, matchCase: boolean, wholeWord?: boolean): Promise<void>;
   stepHit(dir: 1 | -1): void;
   goToHit(i: number): void;
 }
@@ -302,18 +303,19 @@ export const useStore = create<State>((set, get) => ({
     const page = clamp(i, 0, Math.max(0, (get().info?.page_count ?? 1) - 1));
     set({ currentPage: page, nav: { page, y, nonce: get().nav.nonce + 1 } });
   },
-  async runSearch(query, matchCase) {
+  async runSearch(query, matchCase, wholeWord = false) {
     const { path } = get();
     const gen = ++searchGen;
-    if (!path || !query.trim()) { set({ search: { ...noSearch, query, matchCase } }); return; }
-    set({ search: { ...noSearch, query, matchCase, busy: true } });
+    if (!path || !query.trim()) { set({ search: { ...noSearch, query, matchCase, wholeWord } }); return; }
+    set({ search: { ...noSearch, query, matchCase, wholeWord, busy: true } });
+    pushRecentSearch(query);
     try {
-      const r = await searchText(path, query, matchCase);
+      const r = await searchText(path, query, matchCase, wholeWord);
       if (gen !== searchGen) return; // đã có lần tìm mới hơn
-      set({ search: { query, matchCase, hits: r.hits, active: -1, busy: false, truncated: r.truncated, error: null } });
+      set({ search: { query, matchCase, wholeWord, hits: r.hits, active: -1, busy: false, truncated: r.truncated, error: null } });
       if (r.hits.length) get().goToHit(0);
     } catch (e) {
-      if (gen === searchGen) set({ search: { ...noSearch, query, matchCase, error: String(e) } });
+      if (gen === searchGen) set({ search: { ...noSearch, query, matchCase, wholeWord, error: String(e) } });
     }
   },
   stepHit(dir) {

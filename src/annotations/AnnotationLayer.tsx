@@ -51,7 +51,7 @@ export function AnnotationLayer() {
         run: () => { const a = useAnnot.getState(); if (!a.selectedId) return false; a.remove(a.selectedId); },
       },
       ...TOOLS.map((t) => ({
-        id: `annotate.tool.${t.id}`, label: `Công cụ: ${t.label}`, group: "Ghi chú", keys: t.id === "stamp" ? ["K", "J"] : t.hint ? [t.hint] : [],
+        id: `annotate.tool.${t.id}`, label: `Công cụ: ${t.label}`, group: "Ghi chú", keys: t.id === "stamp" ? ["K", "J"] : t.id === "text" ? ["X", "T"] : t.id === "highlight" ? ["U", "H"] : t.hint ? [t.hint] : [],
         run: () => useAnnot.getState().setTool(t.id),
       })),
       ...([["markup", "Xoay vòng Tô sáng / Gạch chân / Gạch ngang", "Shift+U", MARKUP_CYCLE], ["draw", "Xoay vòng công cụ vẽ", "Shift+D", DRAW_CYCLE]] as const).map(([id, label, key, group]) => ({
