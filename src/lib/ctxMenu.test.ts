@@ -31,3 +31,17 @@ describe("tô/gạch từ vùng chọn", () => {
     expect(markupFromRuns([], 0, "underline", "#000")).toBeNull();
   });
 });
+
+import { filterAnnotations } from "../annotations/filter";
+describe("lọc ghi chú", () => {
+  const mk = (o: object) => ({ id: "x", page: 0, kind: "note", color: "#FFD60A", strokeWidth: 1, ...o }) as never;
+  const items = [mk({ id: "1", text: "Xin chào", author: "An" }), mk({ id: "2", kind: "highlight", color: "#FF453A", author: "Bình" }), mk({ id: "3", status: "resolved", replies: [{ id: "r", author: "An", at: 0, text: "Đồng ý" }] })];
+  const base = { status: "all", q: "", kind: "all", color: "all", who: "all" } as const;
+  it("lọc theo từng tiêu chí", () => {
+    expect(filterAnnotations(items, { ...base, kind: "highlight" }).map((a) => a.id)).toEqual(["2"]);
+    expect(filterAnnotations(items, { ...base, color: "#ff453a" }).map((a) => a.id)).toEqual(["2"]);
+    expect(filterAnnotations(items, { ...base, who: "An" }).map((a) => a.id)).toEqual(["1", "3"].filter((i) => i === "1"));
+    expect(filterAnnotations(items, { ...base, q: "đồng" }).map((a) => a.id)).toEqual(["3"]);
+    expect(filterAnnotations(items, { ...base, status: "resolved" }).map((a) => a.id)).toEqual(["2", "3"]);
+  });
+});

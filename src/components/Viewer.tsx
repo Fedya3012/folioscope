@@ -176,6 +176,12 @@ export function Viewer() {
     el.scrollTop = d.top - (e.clientY - d.y);
   };
   const endDrag = () => { drag.current = null; };
+  // Bấm đúp (công cụ Bàn tay): luân phiên vừa bề rộng và cỡ thật.
+  const onDoubleClick = () => {
+    const s = useStore.getState();
+    if (s.tool !== "hand") return;
+    if (s.fit === "width") s.setZoom(1); else s.setFit("width");
+  };
   // Chuột phải: menu theo ngữ cảnh (chữ đang chọn, hoặc vùng trống của trang). Chỉ ở chế độ Xem.
   const onContextMenu = (e: React.MouseEvent) => {
     if (useStore.getState().mode !== "view") return;
@@ -198,6 +204,7 @@ export function Viewer() {
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onContextMenu={onContextMenu}
+      onDoubleClick={onDoubleClick}
       aria-label="Các trang tài liệu"
     >
       {viewMode === "continuous" ? (

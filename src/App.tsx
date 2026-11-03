@@ -157,7 +157,7 @@ export function App() {
   const onHome = s.view === "home" || !s.info;
 
   return (
-    <div className={`shell${onHome ? " on-home" : ""}`}>
+    <div className={`shell${onHome ? " on-home" : ""}${s.toolbarAutoHide && !onHome && s.mode === "view" ? " autohide" : ""}`}>
       <header className="titlebar">
         <strong>Folioscope</strong>
         <TabBar onOpen={() => void openRef.current()} />

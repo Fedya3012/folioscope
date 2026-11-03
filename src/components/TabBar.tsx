@@ -86,6 +86,8 @@ export function TabBar({ onOpen }: { onOpen: () => void }) {
         <div className="ctx-menu" role="menu" style={{ left: menu.x, top: menu.y }} onPointerDown={(e) => e.stopPropagation()}>
           <button role="menuitem" onClick={() => { setMenu(null); closeTab(menu.path); }}>Đóng tab</button>
           <button role="menuitem" disabled={tabs.length < 2} onClick={() => { setMenu(null); closeOtherTabs(menu.path); }}>Đóng các tab khác</button>
+          <button role="menuitem" disabled={tabs.indexOf(menu.path) >= tabs.length - 1} onClick={() => { setMenu(null); useStore.getState().closeTabsToRight(menu.path); }}>Đóng các tab bên phải</button>
+          <button role="menuitem" onClick={() => { setMenu(null); useStore.getState().reopenClosedTab(); }}>Mở lại tab vừa đóng</button>
         </div>
       )}
     </div>

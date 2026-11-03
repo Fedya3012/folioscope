@@ -80,6 +80,10 @@ interface State {
   activateTab(path: string): void;
   closeTab(path: string): void;
   closeOtherTabs(path: string): void;
+  closeTabsToRight(path: string): void;
+  reopenClosedTab(): void;
+  toolbarAutoHide: boolean;
+  toggleToolbarAutoHide(): void;
   confirmClose(): void;
   cancelClose(): void;
   reorderTab(from: number, to: number): void;
@@ -162,8 +166,11 @@ function restore(path: string, snap: Session, view: "home" | "doc") {
 }
 
 /** Đóng các tab (đã xác nhận xong). Đóng tab đang chọn thì chuyển sang tab kề; hết tab thì về Home. */
+const closedStack: string[] = [];
 function closeNow(paths: string[]) {
   const s = useStore.getState();
+  paths.forEach((p) => { const i = closedStack.indexOf(p); if (i >= 0) closedStack.splice(i, 1); closedStack.push(p); });
+  closedStack.splice(0, Math.max(0, closedStack.length - 10));
   const gone = new Set(paths);
   if (gone.has(s.path ?? "")) rememberPosition();
   const remaining = s.tabs.filter((p) => !gone.has(p));
@@ -273,6 +280,20 @@ export const useStore = create<State>((set, get) => ({
     if (others.some(isDirty)) set({ closePrompt: others });
     else closeNow(others);
   },
+  closeTabsToRight(path) {
+    const i = get().tabs.indexOf(path);
+    const right = i < 0 ? [] : get().tabs.slice(i + 1);
+    if (!right.length) return;
+    if (right.some(isDirty)) set({ closePrompt: right });
+    else closeNow(right);
+  },
+  reopenClosedTab() {
+    const p = closedStack.pop();
+    if (p) void get().load(p);
+    else import("./lib/toast").then(({ toast }) => toast.info("Không có tab nào để mở lại"));
+  },
+  toolbarAutoHide: db.getItem("folioscope.toolbarAutoHide") === "1",
+  toggleToolbarAutoHide() { const v = !get().toolbarAutoHide; db.setItem("folioscope.toolbarAutoHide", v ? "1" : "0"); set({ toolbarAutoHide: v }); },
   confirmClose() { const ps = get().closePrompt; set({ closePrompt: null }); if (ps) closeNow(ps); },
   cancelClose: () => set({ closePrompt: null }),
   reorderTab: (from, to) => set({ tabs: moveTab(get().tabs, from, to) }),

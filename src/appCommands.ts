@@ -59,6 +59,8 @@ export function registerAppCommands(openFile: () => void): () => void {
     { id: "compare.open", label: "So sánh hai bản PDF…", group: "Tệp", keys: [], typing: "allow", run: () => { window.dispatchEvent(new CustomEvent("folioscope:compare")); } },
     { id: "ai.toggle", label: "Bật/tắt Trợ lý AI", group: "Ứng dụng", keys: ["Mod+Shift+A"], typing: "allow", when: hasDoc, run: () => { window.dispatchEvent(new CustomEvent("folioscope:ai")); } },
     { id: "tab.close", label: "Đóng tab", group: "Tệp", keys: ["Mod+W"], typing: "allow", when: () => !!st().path, run: () => st().closeTab(st().path!) },
+    { id: "tab.reopen", label: "Mở lại tab vừa đóng", group: "Tệp", keys: ["Mod+Shift+T"], typing: "allow", run: () => st().reopenClosedTab() },
+    { id: "view.autohide", label: "Tự ẩn thanh công cụ khi đọc", group: "Giao diện", keys: [], typing: "allow", run: () => st().toggleToolbarAutoHide() },
     { id: "tab.next", label: "Tab sau", group: "Tệp", keys: ["Mod+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(1) },
     { id: "tab.prev", label: "Tab trước", group: "Tệp", keys: ["Mod+Shift+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(-1) },
     { id: "settings.open", label: "Cài đặt", group: "Ứng dụng", keys: ["Mod+,", "Mod+K"], typing: "allow", run: () => st().setSettingsOpen(true) },
