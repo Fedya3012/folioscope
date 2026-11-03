@@ -45,3 +45,19 @@ describe("lọc ghi chú", () => {
     expect(filterAnnotations(items, { ...base, status: "resolved" }).map((a) => a.id)).toEqual(["2", "3"]);
   });
 });
+
+import { useAnnot } from "../annotations/store";
+describe("chọn nhiều ghi chú", () => {
+  const mk = (id: string) => ({ id, page: 0, kind: "rect", color: "#000000", strokeWidth: 1, rect: { x: 0, y: 0, w: 0.1, h: 0.1 } }) as never;
+  it("đổi màu và xoá hàng loạt", () => {
+    const a = useAnnot.getState(); a.reset();
+    useAnnot.setState({ items: [mk("a"), mk("b"), mk("c")] });
+    a.select("a"); a.toggleMulti("b");
+    expect(useAnnot.getState().multiIds).toEqual(["b"]);
+    useAnnot.getState().bulkColor("#FF453A");
+    expect(useAnnot.getState().items.map((x) => x.color)).toEqual(["#FF453A", "#FF453A", "#000000"]);
+    useAnnot.getState().bulkRemove();
+    expect(useAnnot.getState().items.map((x) => x.id)).toEqual(["c"]);
+    expect(useAnnot.getState().selectedId).toBeNull();
+  });
+});

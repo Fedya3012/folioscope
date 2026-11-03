@@ -10,8 +10,21 @@ const when = (ms?: number) => (ms ? new Date(ms).toLocaleString("vi-VN", { dateS
 
 /** Bảng "Thuộc tính" ở chế độ Ghi chú: thuộc tính của đối tượng đang chọn, hoặc danh sách bình luận. */
 export function AnnotationPanel() {
-  const { items, selectedId } = useAnnot();
+  const { items, selectedId, multiIds, bulkColor, bulkRemove } = useAnnot();
   const selected = items.find((a) => a.id === selectedId);
+  if (selected && multiIds.length) return (
+    <div className="body prop">
+      <p className="prop-kind">Đã chọn {multiIds.length + 1} ghi chú</p>
+      <div className="prop-swatches" role="group" aria-label="Đổi màu hàng loạt">
+        {COLORS.map((c) => <button key={c} className="swatch" aria-label={`Màu ${c}`} style={{ background: c }} onClick={() => bulkColor(c)} />)}
+      </div>
+      <div className="prop-actions">
+        <button className="btn secondary" onClick={() => useAnnot.getState().select(null)}>Bỏ chọn</button>
+        <button className="btn secondary danger" onClick={bulkRemove}>Xoá {multiIds.length + 1} mục</button>
+      </div>
+      <p className="prop-meta">Giữ Shift hoặc Ctrl rồi bấm để thêm/bớt ghi chú.</p>
+    </div>
+  );
   return selected ? <Properties a={selected} key={selected.id} /> : <CommentList />;
 }
 

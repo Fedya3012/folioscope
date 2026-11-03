@@ -49,7 +49,7 @@ export function AnnotationLayer() {
     return registerCommands([
       {
         id: "annotate.delete", label: "Xoá ghi chú đang chọn", group: "Ghi chú", keys: ["Delete", "Backspace"],
-        run: () => { const a = useAnnot.getState(); if (!a.selectedId) return false; a.remove(a.selectedId); },
+        run: () => { const a = useAnnot.getState(); if (!a.selectedId) return false; if (a.multiIds.length) a.bulkRemove(); else a.remove(a.selectedId); },
       },
       ...TOOLS.map((t) => ({
         id: `annotate.tool.${t.id}`, label: `Công cụ: ${t.label}`, group: "Ghi chú", keys: t.id === "stamp" ? ["K", "J"] : t.id === "text" ? ["X", "T"] : t.id === "highlight" ? ["U", "H"] : t.hint ? [t.hint] : [],
@@ -199,14 +199,16 @@ function PageOverlay({ index, el }: { index: number; el: HTMLElement }) {
   const grab = (a: Annotation, mode: "move" | "resize") => (e: RPE) => {
     if (!interactive || useAnnot.getState().tool !== "select") return;
     e.stopPropagation();
+    if (e.shiftKey || e.ctrlKey || e.metaKey) { useAnnot.getState().toggleMulti(a.id); return; }
     svg.current!.setPointerCapture(e.pointerId);
     const st = useAnnot.getState();
-    st.select(a.id);
+    if (!st.multiIds.length || (a.id !== st.selectedId && !st.multiIds.includes(a.id))) st.select(a.id);
     st.checkpoint();
     drag.current = { id: a.id, last: pt(e), mode };
   };
 
   const sel = useAnnot((s) => s.selectedId);
+  const multi = useAnnot((s) => s.multiIds);
   const selected = items.find((a) => a.id === sel);
 
   return (
@@ -217,7 +219,7 @@ function PageOverlay({ index, el }: { index: number; el: HTMLElement }) {
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={finishPoly}
       >
         {items.map((a) => (
-          <Shape key={a.id} a={a} w={size.w} h={size.h} selected={a.id === sel}
+          <Shape key={a.id} a={a} w={size.w} h={size.h} selected={a.id === sel || multi.includes(a.id)}
             onGrab={grab(a, "move")} onResize={grab(a, "resize")} />
         ))}
         {draft && <Shape a={draft} w={size.w} h={size.h} selected={false} />}
