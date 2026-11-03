@@ -59,6 +59,7 @@ pub fn run() {
             content::save_content_edits,
             viewer::get_outline,
             viewer::get_text_runs,
+            viewer::get_page_links,
             viewer::search_text,
             viewer::get_doc_text,
             ai::ai_key_status,

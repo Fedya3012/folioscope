@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getTextRuns, renderPage, renderPageEdited, type NormRect, type TextRun } from "../lib/api";
+import { getPageLinks, getTextRuns, renderPage, renderPageEdited, type NormRect, type TextRun } from "../lib/api";
 import { useEdit } from "../edit/store";
 import { PAGE_GAP, PAGE_PAD, fitPageZoom, fitWidthZoom, pageAtScroll, pageHeightPx, pageOffsets, pageWidthPx, wheelZoom } from "../lib/viewer";
 import { useStore } from "../store";
 import { useCtxMenu } from "../lib/ctxMenu";
-import { buildViewerMenu } from "../lib/viewerMenu";
+import { buildViewerMenu, linkAt } from "../lib/viewerMenu";
 
 /** Giới hạn bề rộng ảnh vẽ để zoom rất lớn không ngốn bộ nhớ; ảnh được CSS kéo giãn tiếp. */
 const MAX_RENDER_WIDTH = 4096;
@@ -186,7 +186,15 @@ export function Viewer() {
   const onContextMenu = (e: React.MouseEvent) => {
     if (useStore.getState().mode !== "view") return;
     e.preventDefault();
-    useCtxMenu.getState().open(e.clientX, e.clientY, buildViewerMenu(e.target as Element, window.getSelection()?.toString() ?? ""));
+    const target = e.target as Element, sel = window.getSelection()?.toString() ?? "";
+    const { clientX: x, clientY: y } = e;
+    const pageEl = target.closest<HTMLElement>(".page");
+    const open = (link?: Awaited<ReturnType<typeof getPageLinks>>[number]) => useCtxMenu.getState().open(x, y, buildViewerMenu(target, sel, link));
+    if (!pageEl || sel.trim() || !path) { open(); return; }
+    const r = pageEl.getBoundingClientRect();
+    getPageLinks(path, Number(pageEl.dataset.page))
+      .then((ls) => open(linkAt(ls, (x - r.left) / r.width, (y - r.top) / r.height)))
+      .catch(() => open());
   };
 
   if (!path || !info) return null;

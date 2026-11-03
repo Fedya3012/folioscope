@@ -94,6 +94,27 @@ pub fn get_text_runs(path: String, index: u16) -> Result<Vec<TextRun>, PdfError>
         .collect())
 }
 
+/// Một liên kết trên trang: vùng bấm (chuẩn hoá 0..1) và đích (địa chỉ ngoài hoặc trang trong file).
+#[derive(serde::Serialize)]
+pub struct PageLink { pub rect: [f32; 4], pub uri: Option<String>, pub page: Option<u16> }
+
+#[tauri::command]
+pub fn get_page_links(path: String, index: u16) -> Result<Vec<PageLink>, PdfError> {
+    let pdfium = bind()?;
+    let doc = load(pdfium, &path)?;
+    let page = doc.pages().get(index as i32).map_err(|_| PdfError::PageOutOfRange(index))?;
+    let (pw, ph) = (page.width().value, page.height().value);
+    let mut out = Vec::new();
+    for link in page.links().iter() {
+        let Ok(bounds) = link.rect() else { continue };
+        let uri = link.action().and_then(|a| a.as_uri_action().and_then(|u| u.uri().ok()));
+        let dest = link.destination().and_then(|d| d.page_index().ok()).map(|i| i as u16);
+        if uri.is_none() && dest.is_none() { continue; }
+        out.push(PageLink { rect: norm(&bounds, pw, ph), uri, page: dest });
+    }
+    Ok(out)
+}
+
 fn search_doc(path: &str, query: &str, match_case: bool, whole_word: bool) -> Result<SearchResult, PdfError> {
     let pdfium = bind()?;
     let doc = load(pdfium, path)?;
