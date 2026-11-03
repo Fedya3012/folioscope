@@ -2,6 +2,7 @@ import { markupFromRuns, selectedRuns } from "../annotations/fromSelection";
 import { newId, useAnnot } from "../annotations/store";
 import type { Kind } from "../annotations/types";
 import { useStore } from "../store";
+import type { PageLink } from "./api";
 import { tidyItems, type MenuItem } from "./ctxMenu";
 import { toast } from "./toast";
 
@@ -43,7 +44,22 @@ const copy = async (text: string, plain: boolean) => {
 };
 
 /** Dựng menu chuột phải theo thứ nằm dưới con trỏ. */
-export function buildViewerMenu(target: Element, selection: string): MenuItem[] {
+/** Liên kết nằm dưới điểm (x, y) (chuẩn hoá 0..1), nếu có. */
+export function linkAt(links: PageLink[], x: number, y: number): PageLink | undefined {
+  return links.find((l) => x >= l.rect[0] && x <= l.rect[0] + l.rect[2] && y >= l.rect[1] && y <= l.rect[1] + l.rect[3]);
+}
+
+function linkItems(l: PageLink): MenuItem[] {
+  const s = st();
+  return tidyItems([
+    l.page != null && { label: `Đi tới trang ${l.page + 1}`, run: () => s.goToPage(l.page!) },
+    !!l.uri && { label: "Sao chép địa chỉ liên kết", run: () => void navigator.clipboard?.writeText(l.uri!) },
+    !!l.uri && { label: l.uri.length > 40 ? `${l.uri.slice(0, 40)}…` : l.uri, disabled: true, run: () => {} },
+    { sep: true },
+  ]);
+}
+
+export function buildViewerMenu(target: Element, selection: string, link?: PageLink): MenuItem[] {
   const s = st();
   const onText = selection.trim().length > 0;
   if (onText) {
@@ -59,6 +75,7 @@ export function buildViewerMenu(target: Element, selection: string): MenuItem[] 
       { label: "Đọc to", run: () => speak(selection) },
     ]);
   }
+  if (link) return linkItems(link).filter((i) => !("sep" in i));
   const pageEl = target.closest<HTMLElement>(".page");
   const page = pageEl ? Number(pageEl.dataset.page) : s.currentPage;
   return tidyItems([

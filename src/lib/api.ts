@@ -123,6 +123,8 @@ export type SearchHit = { page: number; rects: NormRect[] };
 export type SearchResult = { hits: SearchHit[]; truncated: boolean };
 
 export const getOutline = (path: string) => invoke<OutlineItem[]>("get_outline", { path });
+export type PageLink = { rect: NormRect; uri: string | null; page: number | null };
+export const getPageLinks = (path: string, index: number) => invoke<PageLink[]>("get_page_links", { path, index });
 export const getTextRuns = (path: string, index: number) => invoke<TextRun[]>("get_text_runs", { path, index });
 export const searchText = (path: string, query: string, matchCase: boolean, wholeWord = false) =>
   invoke<SearchResult>("search_text", { path, query, matchCase, wholeWord });

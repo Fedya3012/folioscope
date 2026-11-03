@@ -61,3 +61,12 @@ describe("chọn nhiều ghi chú", () => {
     expect(useAnnot.getState().selectedId).toBeNull();
   });
 });
+
+import { linkAt } from "./viewerMenu";
+describe("liên kết dưới con trỏ", () => {
+  it("tìm đúng liên kết theo toạ độ chuẩn hoá", () => {
+    const ls = [{ rect: [0.1, 0.1, 0.2, 0.05] as [number, number, number, number], uri: "https://a.vn", page: null }];
+    expect(linkAt(ls, 0.15, 0.12)?.uri).toBe("https://a.vn");
+    expect(linkAt(ls, 0.5, 0.5)).toBeUndefined();
+  });
+});
