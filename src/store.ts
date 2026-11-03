@@ -8,6 +8,7 @@ import { useOrganizer } from "./organizerStore";
 import { addTab, parsePositions, savePosition, moveTab, type ReadPos } from "./lib/tabs";
 import { addRecent, parseRecent, removeRecent, togglePin, trimRecent, type RecentFile } from "./lib/recent";
 import { DEFAULT_SETTINGS, initialZoom, resolveTheme, sanitizeSettings, type Settings } from "./lib/settings";
+import { pushRecentSearch } from "./lib/recentSearches";
 import { isPageTheme, passwordFailure, stepIndex, type Fit, type PageTheme, type ViewMode } from "./lib/viewer";
 
 export type Theme = "light" | "dark";
@@ -17,10 +18,10 @@ export type LeftTab = "thumbs" | "outline" | "search";
 export type Tool = "select" | "hand";
 /** Yêu cầu cuộn tới một vị trí; `nonce` đổi mỗi lần để yêu cầu lặp lại vẫn được xử lý. */
 export type NavTarget = { page: number; y: number | null; nonce: number };
-export type SearchState = { query: string; matchCase: boolean; hits: SearchHit[]; active: number; busy: boolean; truncated: boolean; error: string | null };
+export type SearchState = { query: string; matchCase: boolean; wholeWord: boolean; hits: SearchHit[]; active: number; busy: boolean; truncated: boolean; error: string | null };
 
 let searchGen = 0;
-const noSearch: SearchState = { query: "", matchCase: false, hits: [], active: -1, busy: false, truncated: false, error: null };
+const noSearch: SearchState = { query: "", matchCase: false, wholeWord: false, hits: [], active: -1, busy: false, truncated: false, error: null };
 
 const SETTINGS_KEY = "folioscope.settings", RECENT_KEY = "folioscope.recent";
 
@@ -79,6 +80,10 @@ interface State {
   activateTab(path: string): void;
   closeTab(path: string): void;
   closeOtherTabs(path: string): void;
+  closeTabsToRight(path: string): void;
+  reopenClosedTab(): void;
+  toolbarAutoHide: boolean;
+  toggleToolbarAutoHide(): void;
   confirmClose(): void;
   cancelClose(): void;
   reorderTab(from: number, to: number): void;
@@ -110,7 +115,7 @@ interface State {
   setTool(t: Tool): void;
   openLeftTab(t: LeftTab): void;
   goToPage(i: number, y?: number | null): void;
-  runSearch(query: string, matchCase: boolean): Promise<void>;
+  runSearch(query: string, matchCase: boolean, wholeWord?: boolean): Promise<void>;
   stepHit(dir: 1 | -1): void;
   goToHit(i: number): void;
 }
@@ -161,8 +166,11 @@ function restore(path: string, snap: Session, view: "home" | "doc") {
 }
 
 /** Đóng các tab (đã xác nhận xong). Đóng tab đang chọn thì chuyển sang tab kề; hết tab thì về Home. */
+const closedStack: string[] = [];
 function closeNow(paths: string[]) {
   const s = useStore.getState();
+  paths.forEach((p) => { const i = closedStack.indexOf(p); if (i >= 0) closedStack.splice(i, 1); closedStack.push(p); });
+  closedStack.splice(0, Math.max(0, closedStack.length - 10));
   const gone = new Set(paths);
   if (gone.has(s.path ?? "")) rememberPosition();
   const remaining = s.tabs.filter((p) => !gone.has(p));
@@ -272,6 +280,20 @@ export const useStore = create<State>((set, get) => ({
     if (others.some(isDirty)) set({ closePrompt: others });
     else closeNow(others);
   },
+  closeTabsToRight(path) {
+    const i = get().tabs.indexOf(path);
+    const right = i < 0 ? [] : get().tabs.slice(i + 1);
+    if (!right.length) return;
+    if (right.some(isDirty)) set({ closePrompt: right });
+    else closeNow(right);
+  },
+  reopenClosedTab() {
+    const p = closedStack.pop();
+    if (p) void get().load(p);
+    else import("./lib/toast").then(({ toast }) => toast.info("Không có tab nào để mở lại"));
+  },
+  toolbarAutoHide: db.getItem("folioscope.toolbarAutoHide") === "1",
+  toggleToolbarAutoHide() { const v = !get().toolbarAutoHide; db.setItem("folioscope.toolbarAutoHide", v ? "1" : "0"); set({ toolbarAutoHide: v }); },
   confirmClose() { const ps = get().closePrompt; set({ closePrompt: null }); if (ps) closeNow(ps); },
   cancelClose: () => set({ closePrompt: null }),
   reorderTab: (from, to) => set({ tabs: moveTab(get().tabs, from, to) }),
@@ -302,18 +324,19 @@ export const useStore = create<State>((set, get) => ({
     const page = clamp(i, 0, Math.max(0, (get().info?.page_count ?? 1) - 1));
     set({ currentPage: page, nav: { page, y, nonce: get().nav.nonce + 1 } });
   },
-  async runSearch(query, matchCase) {
+  async runSearch(query, matchCase, wholeWord = false) {
     const { path } = get();
     const gen = ++searchGen;
-    if (!path || !query.trim()) { set({ search: { ...noSearch, query, matchCase } }); return; }
-    set({ search: { ...noSearch, query, matchCase, busy: true } });
+    if (!path || !query.trim()) { set({ search: { ...noSearch, query, matchCase, wholeWord } }); return; }
+    set({ search: { ...noSearch, query, matchCase, wholeWord, busy: true } });
+    pushRecentSearch(query);
     try {
-      const r = await searchText(path, query, matchCase);
+      const r = await searchText(path, query, matchCase, wholeWord);
       if (gen !== searchGen) return; // đã có lần tìm mới hơn
-      set({ search: { query, matchCase, hits: r.hits, active: -1, busy: false, truncated: r.truncated, error: null } });
+      set({ search: { query, matchCase, wholeWord, hits: r.hits, active: -1, busy: false, truncated: r.truncated, error: null } });
       if (r.hits.length) get().goToHit(0);
     } catch (e) {
-      if (gen === searchGen) set({ search: { ...noSearch, query, matchCase, error: String(e) } });
+      if (gen === searchGen) set({ search: { ...noSearch, query, matchCase, wholeWord, error: String(e) } });
     }
   },
   stepHit(dir) {

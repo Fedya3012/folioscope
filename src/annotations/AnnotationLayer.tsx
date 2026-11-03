@@ -8,7 +8,8 @@ import { centroid, labelFor } from "./measure";
 import { snapToLines, unionRect } from "./snap";
 import { useAnnot, newId } from "./store";
 import { FloatingToolbar } from "./FloatingToolbar";
-import { DRAW_CYCLE, MARKUP_CYCLE, STAMPS, TOOLS, isMarkup, isPolyMeasure, type Annotation, type Pt } from "./types";
+import { useCtxMenu, tidyItems } from "../lib/ctxMenu";
+import { COLORS, DRAW_CYCLE, MARKUP_CYCLE, STAMPS, TOOLS, isMarkup, isPolyMeasure, type Annotation, type Pt } from "./types";
 
 /** Lớp chữ của từng trang, nạp một lần cho mỗi (file, trang) để kéo chuột bám dòng chữ không phải hỏi lại. */
 const runCache = new Map<string, Promise<TextRun[]>>();
@@ -48,10 +49,10 @@ export function AnnotationLayer() {
     return registerCommands([
       {
         id: "annotate.delete", label: "Xoá ghi chú đang chọn", group: "Ghi chú", keys: ["Delete", "Backspace"],
-        run: () => { const a = useAnnot.getState(); if (!a.selectedId) return false; a.remove(a.selectedId); },
+        run: () => { const a = useAnnot.getState(); if (!a.selectedId) return false; if (a.multiIds.length) a.bulkRemove(); else a.remove(a.selectedId); },
       },
       ...TOOLS.map((t) => ({
-        id: `annotate.tool.${t.id}`, label: `Công cụ: ${t.label}`, group: "Ghi chú", keys: t.id === "stamp" ? ["K", "J"] : t.hint ? [t.hint] : [],
+        id: `annotate.tool.${t.id}`, label: `Công cụ: ${t.label}`, group: "Ghi chú", keys: t.id === "stamp" ? ["K", "J"] : t.id === "text" ? ["X", "T"] : t.id === "highlight" ? ["U", "H"] : t.hint ? [t.hint] : [],
         run: () => useAnnot.getState().setTool(t.id),
       })),
       ...([["markup", "Xoay vòng Tô sáng / Gạch chân / Gạch ngang", "Shift+U", MARKUP_CYCLE], ["draw", "Xoay vòng công cụ vẽ", "Shift+D", DRAW_CYCLE]] as const).map(([id, label, key, group]) => ({
@@ -198,14 +199,16 @@ function PageOverlay({ index, el }: { index: number; el: HTMLElement }) {
   const grab = (a: Annotation, mode: "move" | "resize") => (e: RPE) => {
     if (!interactive || useAnnot.getState().tool !== "select") return;
     e.stopPropagation();
+    if (e.shiftKey || e.ctrlKey || e.metaKey) { useAnnot.getState().toggleMulti(a.id); return; }
     svg.current!.setPointerCapture(e.pointerId);
     const st = useAnnot.getState();
-    st.select(a.id);
+    if (!st.multiIds.length || (a.id !== st.selectedId && !st.multiIds.includes(a.id))) st.select(a.id);
     st.checkpoint();
     drag.current = { id: a.id, last: pt(e), mode };
   };
 
   const sel = useAnnot((s) => s.selectedId);
+  const multi = useAnnot((s) => s.multiIds);
   const selected = items.find((a) => a.id === sel);
 
   return (
@@ -216,7 +219,7 @@ function PageOverlay({ index, el }: { index: number; el: HTMLElement }) {
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={finishPoly}
       >
         {items.map((a) => (
-          <Shape key={a.id} a={a} w={size.w} h={size.h} selected={a.id === sel}
+          <Shape key={a.id} a={a} w={size.w} h={size.h} selected={a.id === sel || multi.includes(a.id)}
             onGrab={grab(a, "move")} onResize={grab(a, "resize")} />
         ))}
         {draft && <Shape a={draft} w={size.w} h={size.h} selected={false} />}
@@ -236,7 +239,7 @@ function Shape({ a, w, h, selected, onGrab, onResize }: {
   const X = (v: number) => v * w, Y = (v: number) => v * h;
   const r = a.rect;
   const lines = a.rects?.length ? a.rects : r ? [r] : [];
-  const common = { onPointerDown: onGrab, style: { cursor: onGrab ? "move" : undefined } };
+  const common = { onPointerDown: onGrab, onContextMenu: onGrab ? (e: React.MouseEvent) => annotationMenu(e, a) : undefined, style: { cursor: onGrab ? "move" : undefined } };
   let body: React.ReactNode = null;
 
   switch (a.kind) {
@@ -367,4 +370,22 @@ function TextBody({ a, w, h, editing }: { a: Annotation; w: number; h: number; e
       )}
     </foreignObject>
   );
+}
+
+/** Menu chuột phải trên một ghi chú: sửa, đổi màu, trả lời, giải quyết, nhân đôi, sao chép nội dung, xoá. */
+function annotationMenu(e: React.MouseEvent, a: Annotation) {
+  e.preventDefault(); e.stopPropagation();
+  const st = useAnnot.getState();
+  st.select(a.id);
+  useCtxMenu.getState().open(e.clientX, e.clientY, tidyItems([
+    (a.kind === "note" || a.kind === "text") && { label: "Sửa nội dung", run: () => useAnnot.getState().edit(a.id) },
+    a.kind === "note" && { label: "Trả lời (mở bảng thuộc tính)", run: () => useStore.setState({ rightOpen: true }) },
+    a.kind === "note" && { label: a.status === "resolved" ? "Mở lại bình luận" : "Đánh dấu đã giải quyết", run: () => useAnnot.getState().update(a.id, { status: a.status === "resolved" ? "open" : "resolved" }) },
+    { sep: true },
+    ...COLORS.map((c) => ({ label: `Màu ${c}${a.color === c ? " ✓" : ""}`, run: () => useAnnot.getState().update(a.id, { color: c }) })),
+    { sep: true },
+    { label: "Nhân đôi", run: () => useAnnot.getState().duplicate(a.id) },
+    { label: "Sao chép nội dung ghi chú", disabled: !a.text, run: () => void navigator.clipboard?.writeText([a.text, ...(a.replies ?? []).map((r) => `${r.author}: ${r.text}`)].filter(Boolean).join("\n")) },
+    { label: "Xoá", danger: true, run: () => useAnnot.getState().remove(a.id) },
+  ]));
 }

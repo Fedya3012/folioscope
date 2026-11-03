@@ -71,3 +71,4 @@
 .comment-list button:hover { background: var(--state-hover); }
 .comment-list .c-top, .comment-list .c-replies { font-size: var(--fs-small); color: var(--text-secondary); }
 .comment-list .c-text { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.c-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; }

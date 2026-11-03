@@ -124,8 +124,8 @@ export type SearchResult = { hits: SearchHit[]; truncated: boolean };
 
 export const getOutline = (path: string) => invoke<OutlineItem[]>("get_outline", { path });
 export const getTextRuns = (path: string, index: number) => invoke<TextRun[]>("get_text_runs", { path, index });
-export const searchText = (path: string, query: string, matchCase: boolean) =>
-  invoke<SearchResult>("search_text", { path, query, matchCase });
+export const searchText = (path: string, query: string, matchCase: boolean, wholeWord = false) =>
+  invoke<SearchResult>("search_text", { path, query, matchCase, wholeWord });
 
 // ---- Sửa nội dung PDF (Gói H) ----
 export type ObjKind = "text" | "image" | "shape" | "group";

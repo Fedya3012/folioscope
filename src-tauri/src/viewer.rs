@@ -94,10 +94,10 @@ pub fn get_text_runs(path: String, index: u16) -> Result<Vec<TextRun>, PdfError>
         .collect())
 }
 
-fn search_doc(path: &str, query: &str, match_case: bool) -> Result<SearchResult, PdfError> {
+fn search_doc(path: &str, query: &str, match_case: bool, whole_word: bool) -> Result<SearchResult, PdfError> {
     let pdfium = bind()?;
     let doc = load(pdfium, path)?;
-    let opts = PdfSearchOptions::new().match_case(match_case);
+    let opts = PdfSearchOptions::new().match_case(match_case).match_whole_word(whole_word);
     let mut hits = Vec::new();
     for (i, page) in doc.pages().iter().enumerate() {
         let (pw, ph) = (page.width().value, page.height().value);
@@ -118,11 +118,11 @@ fn search_doc(path: &str, query: &str, match_case: bool) -> Result<SearchResult,
 
 /// Tìm trong cả tài liệu. Chạy ở luồng nền để không làm đơ cửa sổ khi file hàng trăm trang.
 #[tauri::command]
-pub async fn search_text(path: String, query: String, match_case: bool) -> Result<SearchResult, PdfError> {
+pub async fn search_text(path: String, query: String, match_case: bool, whole_word: Option<bool>) -> Result<SearchResult, PdfError> {
     if query.trim().is_empty() {
         return Ok(SearchResult { hits: vec![], truncated: false });
     }
-    tauri::async_runtime::spawn_blocking(move || search_doc(&path, &query, match_case))
+    tauri::async_runtime::spawn_blocking(move || search_doc(&path, &query, match_case, whole_word.unwrap_or(false)))
         .await
         .map_err(|e| PdfError::Render(e.to_string()))?
 }
@@ -158,7 +158,7 @@ mod tests {
         for r in &runs {
             assert!(r.rect.iter().all(|v| v.is_finite()) && r.rect[2] > 0.0 && r.rect[3] > 0.0);
         }
-        let res = search_doc(&path, word, false).expect("tìm được");
+        let res = search_doc(&path, word, false, false).expect("tìm được");
         assert!(res.hits.iter().any(|h| h.page == 5), "phải thấy từ ở đúng trang {word}");
         assert!(res.hits.iter().all(|h| !h.rects.is_empty()));
     }

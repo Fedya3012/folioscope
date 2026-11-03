@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { labelFor, UNITS, type Unit } from "./measure";
 import { useAnnot } from "./store";
+import { filterAnnotations } from "./filter";
 import { COLORS, STAMPS, TOOLS, hasThread, isMarkup, isMeasure, type Annotation } from "./types";
 
 const KIND_LABEL = Object.fromEntries(TOOLS.map((t) => [t.id, t.label])) as Record<string, string>;
@@ -9,8 +10,21 @@ const when = (ms?: number) => (ms ? new Date(ms).toLocaleString("vi-VN", { dateS
 
 /** Bảng "Thuộc tính" ở chế độ Ghi chú: thuộc tính của đối tượng đang chọn, hoặc danh sách bình luận. */
 export function AnnotationPanel() {
-  const { items, selectedId } = useAnnot();
+  const { items, selectedId, multiIds, bulkColor, bulkRemove } = useAnnot();
   const selected = items.find((a) => a.id === selectedId);
+  if (selected && multiIds.length) return (
+    <div className="body prop">
+      <p className="prop-kind">Đã chọn {multiIds.length + 1} ghi chú</p>
+      <div className="prop-swatches" role="group" aria-label="Đổi màu hàng loạt">
+        {COLORS.map((c) => <button key={c} className="swatch" aria-label={`Màu ${c}`} style={{ background: c }} onClick={() => bulkColor(c)} />)}
+      </div>
+      <div className="prop-actions">
+        <button className="btn secondary" onClick={() => useAnnot.getState().select(null)}>Bỏ chọn</button>
+        <button className="btn secondary danger" onClick={bulkRemove}>Xoá {multiIds.length + 1} mục</button>
+      </div>
+      <p className="prop-meta">Giữ Shift hoặc Ctrl rồi bấm để thêm/bớt ghi chú.</p>
+    </div>
+  );
   return selected ? <Properties a={selected} key={selected.id} /> : <CommentList />;
 }
 
@@ -98,8 +112,12 @@ function CommentList() {
   const { items, author, setAuthor, select, scale, setScale } = useAnnot();
   const goToPage = useStore((s) => s.goToPage);
   const [filter, setFilter] = useState<Filter>("all");
-  const notes = items.filter((a) => hasThread(a.kind)).filter((a) => filter === "all" || (a.status ?? "open") === filter)
-    .sort((x, y) => x.page - y.page);
+  const [q, setQ] = useState("");
+  const [kind, setKind] = useState("all");
+  const [color, setColor] = useState("all");
+  const [who, setWho] = useState("all");
+  const authors = [...new Set(items.map((a) => a.author ?? "Tôi"))];
+  const notes = filterAnnotations(items, { status: filter, q, kind, color, who }).sort((x, y) => x.page - y.page);
 
   return (
     <div className="body prop">
@@ -113,19 +131,31 @@ function CommentList() {
           <input type="number" min={0.01} step="any" value={scale.ratio} onChange={(e) => setScale({ ratio: Number(e.target.value) })} />
         </span>
       </Row>
-      <h3 className="prop-h">Bình luận ({notes.length})</h3>
+      <h3 className="prop-h">Ghi chú và bình luận ({notes.length})</h3>
+      <input type="search" value={q} placeholder="Tìm trong ghi chú, bình luận…" onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
+      <div className="prop-actions">
+        <select aria-label="Lọc theo loại" value={kind} onChange={(e) => setKind(e.target.value)}>
+          <option value="all">Mọi loại</option>{TOOLS.filter((t) => t.id !== "select").map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <select aria-label="Lọc theo màu" value={color} onChange={(e) => setColor(e.target.value)}>
+          <option value="all">Mọi màu</option>{COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select aria-label="Lọc theo người tạo" value={who} onChange={(e) => setWho(e.target.value)}>
+          <option value="all">Mọi người</option>{authors.map((x) => <option key={x}>{x}</option>)}
+        </select>
+      </div>
       <div className="segmented" role="group" aria-label="Lọc bình luận">
         {([["all", "Tất cả"], ["open", "Đang mở"], ["resolved", "Đã xong"]] as const).map(([f, label]) => (
           <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)}>{label}</button>
         ))}
       </div>
-      {!notes.length && <p className="prop-meta">Chưa có bình luận. Chọn công cụ Ghi chú rồi bấm lên trang để thêm.</p>}
+      {!notes.length && <p className="prop-meta">Không có mục nào khớp. Chọn công cụ Ghi chú rồi bấm lên trang để thêm.</p>}
       <ul className="comment-list">
         {notes.map((a) => (
           <li key={a.id}>
             <button onClick={() => { goToPage(a.page); select(a.id); }}>
-              <span className="c-top"><b>{a.author ?? "Tôi"}</b> · trang {a.page + 1}{a.status === "resolved" ? " · ✓" : ""}</span>
-              <span className="c-text">{a.text || "(chưa có nội dung)"}</span>
+              <span className="c-top"><i className="c-dot" style={{ background: a.color }} /><b>{a.author ?? "Tôi"}</b> · {KIND_LABEL[a.kind]} · trang {a.page + 1}{a.status === "resolved" ? " · ✓" : ""}</span>
+              <span className="c-text">{a.text || (hasThread(a.kind) || a.kind === "text" ? "(chưa có nội dung)" : "")}</span>
               {!!a.replies?.length && <span className="c-replies">{a.replies.length} trả lời</span>}
             </button>
           </li>
