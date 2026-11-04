@@ -10,6 +10,7 @@ import { useStore, type Mode } from "./store";
 import { savePath } from "./annotations/save";
 import { saveEdits } from "./edit/save";
 import { toast } from "./lib/toast";
+import { markSelection } from "./lib/viewerMenu";
 
 export const GOTO_INPUT_ID = "folioscope-goto-page";
 
@@ -45,6 +46,9 @@ export function registerAppCommands(openFile: () => void): () => void {
     { id: "file.saveAs", label: "Lưu thành bản sao…", group: "Tệp", keys: ["Mod+Shift+S"], typing: "allow", run: () => save(true) },
     { id: "view.fullscreen", label: "Toàn màn hình", group: "Xem", keys: ["Mod+L", "F11"], typing: "allow", run: toggleFullscreen },
     { id: "nav.goto", label: "Đi tới trang…", group: "Điều hướng", keys: ["Mod+Shift+N"], typing: "allow", when: hasDoc, run: () => { const el = document.getElementById(GOTO_INPUT_ID) as HTMLInputElement | null; el?.focus(); el?.select(); } },
+    { id: "mode.editQuick", label: "Chế độ Sửa nội dung", group: "Chế độ", keys: ["Mod+E"], typing: "allow", when: hasDoc, run: () => st().setMode("edit") },
+    { id: "markup.highlight", label: "Tô sáng chữ đang chọn", group: "Ghi chú", keys: ["Mod+H"], typing: "allow", when: inView, run: () => (markSelection("highlight") ? undefined : (st().setMode("annotate"), useAnnot.getState().setTool("highlight"))) },
+    { id: "markup.underline", label: "Gạch chân chữ đang chọn", group: "Ghi chú", keys: ["Mod+U"], typing: "allow", when: inView, run: () => (markSelection("underline") ? undefined : (st().setMode("annotate"), useAnnot.getState().setTool("underline"))) },
     { id: "tool.hand", label: "Công cụ Bàn tay", group: "Xem", keys: ["H"], when: inView, run: () => st().setTool("hand") },
     { id: "tool.select", label: "Công cụ Chọn chữ", group: "Xem", keys: ["V"], when: inView, run: () => st().setTool("select") },
     { id: "search.next", label: "Kết quả tìm tiếp theo", group: "Tìm kiếm", keys: ["F3", "Mod+G"], typing: "allow", when: () => st().search.hits.length > 0, run: () => st().stepHit(1) },
@@ -55,6 +59,8 @@ export function registerAppCommands(openFile: () => void): () => void {
     { id: "compare.open", label: "So sánh hai bản PDF…", group: "Tệp", keys: [], typing: "allow", run: () => { window.dispatchEvent(new CustomEvent("folioscope:compare")); } },
     { id: "ai.toggle", label: "Bật/tắt Trợ lý AI", group: "Ứng dụng", keys: ["Mod+Shift+A"], typing: "allow", when: hasDoc, run: () => { window.dispatchEvent(new CustomEvent("folioscope:ai")); } },
     { id: "tab.close", label: "Đóng tab", group: "Tệp", keys: ["Mod+W"], typing: "allow", when: () => !!st().path, run: () => st().closeTab(st().path!) },
+    { id: "tab.reopen", label: "Mở lại tab vừa đóng", group: "Tệp", keys: ["Mod+Shift+T"], typing: "allow", run: () => st().reopenClosedTab() },
+    { id: "view.autohide", label: "Tự ẩn thanh công cụ khi đọc", group: "Giao diện", keys: [], typing: "allow", run: () => st().toggleToolbarAutoHide() },
     { id: "tab.next", label: "Tab sau", group: "Tệp", keys: ["Mod+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(1) },
     { id: "tab.prev", label: "Tab trước", group: "Tệp", keys: ["Mod+Shift+Tab"], typing: "allow", when: () => st().tabs.length > 1, run: () => cycle(-1) },
     { id: "settings.open", label: "Cài đặt", group: "Ứng dụng", keys: ["Mod+,", "Mod+K"], typing: "allow", run: () => st().setSettingsOpen(true) },
@@ -75,7 +81,7 @@ export function registerAppCommands(openFile: () => void): () => void {
         else document.getElementById(SEARCH_INPUT_ID)?.focus();
       },
     },
-    { id: "search.clear", label: "Xoá kết quả tìm kiếm", group: "Tìm kiếm", keys: ["Escape"], when: () => st().search.hits.length > 0, run: () => { st().runSearch("", st().search.matchCase); return false; } },
+    { id: "search.clear", label: "Xoá kết quả tìm kiếm", group: "Tìm kiếm", keys: ["Escape"], when: () => st().search.hits.length > 0, run: () => { st().runSearch("", st().search.matchCase, st().search.wholeWord); return false; } },
     { id: "edit.undo", label: "Hoàn tác", group: "Chỉnh sửa", keys: ["Mod+Z"], run: () => (undo() ? undefined : false) },
     { id: "edit.redo", label: "Làm lại", group: "Chỉnh sửa", keys: ["Mod+Shift+Z", "Mod+Y"], run: () => (redo() ? undefined : false) },
     { id: "nav.next", label: "Trang sau", group: "Điều hướng", keys: ["PageDown"], when: hasDoc, run: () => go(st().currentPage + 1) },

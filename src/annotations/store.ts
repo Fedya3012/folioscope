@@ -12,6 +12,11 @@ interface AnnotState {
   color: string;
   strokeWidth: number;
   selectedId: string | null;
+  /** Các ghi chú chọn thêm (Shift/Ctrl+bấm) cùng với `selectedId`, để đổi màu hoặc xoá hàng loạt. */
+  multiIds: string[];
+  toggleMulti(id: string): void;
+  bulkColor(color: string): void;
+  bulkRemove(): void;
   editingId: string | null;
   past: Annotation[][];
   future: Annotation[][];
@@ -49,7 +54,15 @@ export const useAnnot = create<AnnotState>((set, get) => {
   return {
     items: [], tool: "select", color: DEFAULT_COLOR, strokeWidth: 2,
     stamp: STAMPS[0].label, scale: (db.getJson(SCALE_KEY) as MeasureScale | null) ?? DEFAULT_SCALE, author: (db.getJson(AUTHOR_KEY) as string | null) ?? "Tôi",
-    selectedId: null, editingId: null, past: [], future: [], dirty: false,
+    selectedId: null, multiIds: [], editingId: null, past: [], future: [], dirty: false,
+    toggleMulti(id) {
+      const { selectedId, multiIds } = get();
+      if (!selectedId) return set({ selectedId: id, multiIds: [] });
+      if (id === selectedId) return set({ selectedId: multiIds[0] ?? null, multiIds: multiIds.slice(1) });
+      set({ multiIds: multiIds.includes(id) ? multiIds.filter((x) => x !== id) : [...multiIds, id] });
+    },
+    bulkColor(color) { const ids = new Set(selectionIds(get())); commit(get().items.map((a) => (ids.has(a.id) ? { ...a, color } : a))); set({ color }); },
+    bulkRemove() { const ids = new Set(selectionIds(get())); commit(get().items.filter((a) => !ids.has(a.id))); set({ selectedId: null, multiIds: [], editingId: null }); },
 
     setStamp: (stamp) => set({ stamp }),
     setScale(p) {
@@ -73,9 +86,9 @@ export const useAnnot = create<AnnotState>((set, get) => {
       commit(items.map((a) => (a.id === selectedId ? { ...a, ...p } : a)));
       set(p);
     },
-    select: (selectedId) => set({ selectedId, editingId: null }),
+    select: (selectedId) => set({ selectedId, multiIds: [], editingId: null }),
     edit: (editingId) => set({ editingId }),
-    add(a) { commit([...get().items, { ...a, id: a.id || uid(), author: get().author, at: Date.now(), status: a.kind === "note" ? "open" : undefined }]); set({ selectedId: a.id || null }); },
+    add(a) { commit([...get().items, { ...a, id: a.id || uid(), author: get().author, at: Date.now(), status: a.kind === "note" ? "open" : undefined }]); set({ selectedId: a.id || null, multiIds: [] }); },
     patch: (id, a) => set((s) => ({ items: s.items.map((x) => (x.id === id ? { ...x, ...a } : x)), dirty: true })),
     checkpoint: () => set((s) => ({ past: [...s.past, s.items].slice(-LIMIT), future: [] })),
     remove(id) { commit(get().items.filter((a) => a.id !== id)); set({ selectedId: null, editingId: null }); },
@@ -93,15 +106,18 @@ export const useAnnot = create<AnnotState>((set, get) => {
     undo() {
       const { past, items, future } = get();
       if (!past.length) return;
-      set({ items: past[past.length - 1], past: past.slice(0, -1), future: [items, ...future], selectedId: null, editingId: null, dirty: true });
+      set({ items: past[past.length - 1], past: past.slice(0, -1), future: [items, ...future], selectedId: null, multiIds: [], editingId: null, dirty: true });
     },
     redo() {
       const { past, items, future } = get();
       if (!future.length) return;
-      set({ items: future[0], past: [...past, items], future: future.slice(1), selectedId: null, editingId: null, dirty: true });
+      set({ items: future[0], past: [...past, items], future: future.slice(1), selectedId: null, multiIds: [], editingId: null, dirty: true });
     },
-    reset: () => set({ items: [], past: [], future: [], selectedId: null, editingId: null, dirty: false, color: COLORS[0] }),
+    reset: () => set({ items: [], past: [], future: [], selectedId: null, multiIds: [], editingId: null, dirty: false, color: COLORS[0] }),
   };
 });
 
 export const newId = uid;
+
+/** Mọi id đang được chọn (chính + chọn thêm). */
+export const selectionIds = (s: { selectedId: string | null; multiIds: string[] }) => (s.selectedId ? [s.selectedId, ...s.multiIds] : []);

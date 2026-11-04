@@ -1,0 +1,23 @@
+[package]
+name = "folioscope-shell"
+version = "0.1.0"
+edition = "2021"
+description = "Mục menu chuột phải của Windows 11 (IExplorerCommand) cho Folioscope"
+
+[lib]
+name = "folioscope_shell"
+crate-type = ["cdylib"]
+
+[target.'cfg(windows)'.dependencies]
+windows-core = "0.58"
+windows = { version = "0.58", features = [
+  "implement",
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_System_Com",
+  "Win32_System_LibraryLoader",
+  "Win32_System_SystemServices",
+  "Win32_System_Threading",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+] }

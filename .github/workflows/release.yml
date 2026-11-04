@@ -29,8 +29,8 @@ jobs:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
       # Chạy tay: lấy nhánh đang chọn (thường là main), tauri-action tạo tag trên commit đó. Đẩy tag: lấy đúng tag.
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 22, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
@@ -51,6 +51,10 @@ jobs:
         env: { KEY: "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" }
         run: '[ -n "$KEY" ] || { echo "Thiếu secret TAURI_SIGNING_PRIVATE_KEY (xem docs/release.md)"; exit 1; }'
       - run: npm run fetch-pdfium
+      - name: Dựng menu chuột phải Windows 11
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-shellext.ps1
 
       # Ký số Windows: chỉ chạy khi đã có chứng chỉ trong secrets. Không có thì bộ cài vẫn ra, chỉ chưa ký
       # (Windows SmartScreen sẽ cảnh báo "nhà phát hành không xác định").
@@ -81,10 +85,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ env.TAG }}
-          commitish: ${{ github.sha }}
+          releaseCommitish: ${{ github.sha }}
           releaseName: "Folioscope ${{ env.TAG }}"
           releaseBody: "Bản cài cho Windows (.exe / .msi), macOS và Linux. Người đã cài Folioscope sẽ được báo có bản mới khi mở app."
           releaseDraft: false
           prerelease: false
-          uploadUpdaterJson: true
+          includeUpdaterJson: true
           args: ${{ matrix.args }}

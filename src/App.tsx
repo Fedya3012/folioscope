@@ -23,6 +23,7 @@ import { routeDrop } from "./lib/recent";
 import { installShortcuts } from "./lib/shortcuts";
 import { registerAppCommands } from "./appCommands";
 import { Toaster } from "./components/Toaster";
+import { ContextMenu } from "./components/ContextMenu";
 import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput } from "./lib/viewer";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { OfficeInstallDialog } from "./components/OfficeInstallDialog";
@@ -156,7 +157,7 @@ export function App() {
   const onHome = s.view === "home" || !s.info;
 
   return (
-    <div className={`shell${onHome ? " on-home" : ""}`}>
+    <div className={`shell${onHome ? " on-home" : ""}${s.toolbarAutoHide && !onHome && s.mode === "view" ? " autohide" : ""}`}>
       <header className="titlebar">
         <strong>Folioscope</strong>
         <TabBar onOpen={() => void openRef.current()} />
@@ -272,6 +273,7 @@ export function App() {
       <OcrInstallDialog />
       <ConfirmClose />
       <Toaster />
+      <ContextMenu />
       {s.settingsOpen && <Settings />}
       {paletteOpen && <CommandPalette />}
       {dragOver && <div className="drop-overlay" aria-hidden="true"><div>Thả file để mở<small>PDF mở để xem; nhiều file hoặc Word, ảnh sẽ vào Gộp file</small></div></div>}

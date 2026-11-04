@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ACROBAT_PRESET, applyPreset, conflictsFor, resetAllKeys, resetKeys, setKeys } from "../lib/keymap";
 import { comboFromEvent, formatCombo, getKeyOverrides, listCommands, parseCombo } from "../lib/shortcuts";
 import { AI_MODELS } from "../lib/ai";
-import { aiKeyClear, aiKeySet, aiKeyStatus, shellMenuInstall, shellMenuUninstall } from "../lib/api";
+import { aiKeyClear, aiKeySet, aiKeyStatus, shellMenuInstall, shellMenuInstallModern, shellMenuStatus, shellMenuUninstall, type MenuStatus } from "../lib/api";
 import { ACCENTS, RECENT_LIMITS, UI_SIZES, type Settings as S } from "../lib/settings";
 import { toast } from "../lib/toast";
 import { useStore } from "../store";
@@ -45,6 +45,28 @@ function AiKey() {
         placeholder={saved ? "Dán khoá mới để thay" : "Dán khoá API (sk-ant-…)"} onChange={(e) => setText(e.target.value)} />
       <button className="btn primary" disabled={busy || !text.trim()} onClick={() => void save()}>Lưu</button>
       {saved && <button className="btn ghost danger-text" onClick={() => void clear()}>Xoá khoá</button>}
+    </div>
+  );
+}
+
+/** Đưa mục "Combine files..." lên menu chính của Windows 11. Cần tin chứng chỉ tự ký của bộ cài (hỏi quyền một lần). */
+function ModernMenu() {
+  const [m, setM] = useState<MenuStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const refresh = () => shellMenuStatus().then(setM).catch(() => setM(null));
+  useEffect(() => { void refresh(); }, []);
+  if (!m?.supported) return <span className="hint">Chỉ có trên Windows.</span>;
+  if (!m.modernAvailable) return <span className="hint">Bản này không kèm gói Windows 11 (chỉ có trong bộ cài chính thức).</span>;
+  const run = async () => {
+    setBusy(true);
+    try { await shellMenuInstallModern(); toast.success("Đã bật. Nếu chưa thấy, mở lại Explorer hoặc đăng xuất rồi đăng nhập lại."); }
+    catch (e) { toast.error(`Chưa bật được: ${String(e)}`); }
+    finally { setBusy(false); void refresh(); }
+  };
+  return (
+    <div className="ai-key">
+      {m.modern ? <span className="ai-key-ok">Đang hiện ở menu chính</span> : <span>Chưa bật</span>}
+      {!m.modern && <button className="btn primary" disabled={busy} onClick={() => void run()}>{busy ? "Đang bật…" : "Bật"}</button>}
     </div>
   );
 }
@@ -198,6 +220,8 @@ export function Settings() {
       control: <Toggle label="Menu chuột phải trong Explorer" on={st.explorerMenu} onChange={(on) => {
         (on ? shellMenuInstall() : shellMenuUninstall()).then(() => set({ explorerMenu: on })).catch((e) => toast.error(String(e)));
       }} /> },
+    { id: "explorer-modern", group: "general", label: "Hiện ở menu chính của Windows 11", desc: "Đưa “Combine files in Folioscope...” lên ngay menu chuột phải, không cần “Show more options”. Windows hỏi quyền quản trị một lần để tin chứng chỉ của Folioscope. Tắt bằng công tắc ở trên.", keywords: "windows 11 menu chính show more options chứng chỉ",
+      control: <ModernMenu /> },
     { id: "recent", group: "general", label: "Số file gần đây", desc: "File đã ghim không bị tính vào giới hạn.", keywords: "gần đây lịch sử",
       control: <Seg label="Số file gần đây" value={st.recentLimit} onChange={(recentLimit) => set({ recentLimit })} options={RECENT_LIMITS.map((n) => [n, String(n)] as [number, string])} /> },
 

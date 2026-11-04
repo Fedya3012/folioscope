@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getTextRuns, renderPage, renderPageEdited, type NormRect, type TextRun } from "../lib/api";
+import { getPageLinks, getTextRuns, renderPage, renderPageEdited, type NormRect, type TextRun } from "../lib/api";
 import { useEdit } from "../edit/store";
 import { PAGE_GAP, PAGE_PAD, fitPageZoom, fitWidthZoom, pageAtScroll, pageHeightPx, pageOffsets, pageWidthPx, wheelZoom } from "../lib/viewer";
 import { useStore } from "../store";
+import { useCtxMenu } from "../lib/ctxMenu";
+import { buildViewerMenu, linkAt } from "../lib/viewerMenu";
 
 /** Giới hạn bề rộng ảnh vẽ để zoom rất lớn không ngốn bộ nhớ; ảnh được CSS kéo giãn tiếp. */
 const MAX_RENDER_WIDTH = 4096;
@@ -40,7 +42,7 @@ function TextLayer({ path, index, w, h }: { path: string; index: number; w: numb
   return (
     <div ref={root} className="textlayer">
       {runs.map((r, i) => (
-        <span key={i} style={{ left: pct(r.rect[0]), top: pct(r.rect[1]), fontSize: Math.max(1, r.rect[3] * h), lineHeight: `${r.rect[3] * h}px` }}>{r.text}</span>
+        <span key={i} data-rect={JSON.stringify(r.rect)} style={{ left: pct(r.rect[0]), top: pct(r.rect[1]), fontSize: Math.max(1, r.rect[3] * h), lineHeight: `${r.rect[3] * h}px` }}>{r.text}</span>
       ))}
     </div>
   );
@@ -174,6 +176,26 @@ export function Viewer() {
     el.scrollTop = d.top - (e.clientY - d.y);
   };
   const endDrag = () => { drag.current = null; };
+  // Bấm đúp (công cụ Bàn tay): luân phiên vừa bề rộng và cỡ thật.
+  const onDoubleClick = () => {
+    const s = useStore.getState();
+    if (s.tool !== "hand") return;
+    if (s.fit === "width") s.setZoom(1); else s.setFit("width");
+  };
+  // Chuột phải: menu theo ngữ cảnh (chữ đang chọn, hoặc vùng trống của trang). Chỉ ở chế độ Xem.
+  const onContextMenu = (e: React.MouseEvent) => {
+    if (useStore.getState().mode !== "view") return;
+    e.preventDefault();
+    const target = e.target as Element, sel = window.getSelection()?.toString() ?? "";
+    const { clientX: x, clientY: y } = e;
+    const pageEl = target.closest<HTMLElement>(".page");
+    const open = (link?: Awaited<ReturnType<typeof getPageLinks>>[number]) => useCtxMenu.getState().open(x, y, buildViewerMenu(target, sel, link));
+    if (!pageEl || sel.trim() || !path) { open(); return; }
+    const r = pageEl.getBoundingClientRect();
+    getPageLinks(path, Number(pageEl.dataset.page))
+      .then((ls) => open(linkAt(ls, (x - r.left) / r.width, (y - r.top) / r.height)))
+      .catch(() => open());
+  };
 
   if (!path || !info) return null;
   const pageEl = (i: number) => (
@@ -189,6 +211,8 @@ export function Viewer() {
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
+      onContextMenu={onContextMenu}
+      onDoubleClick={onDoubleClick}
       aria-label="Các trang tài liệu"
     >
       {viewMode === "continuous" ? (

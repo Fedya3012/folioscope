@@ -7,3 +7,5 @@ src-tauri/pdfium/*
 !src-tauri/pdfium/.gitkeep
 # file PDF thử là sách có bản quyền, không bao giờ commit
 *.pdf
+src-tauri/winshell/*
+!src-tauri/winshell/.gitkeep

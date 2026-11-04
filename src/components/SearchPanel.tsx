@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../store";
+import { clearRecentSearches, getRecentSearches } from "../lib/recentSearches";
 
 export const SEARCH_INPUT_ID = "folioscope-search-input";
 
@@ -7,14 +8,16 @@ export function SearchPanel() {
   const { search, runSearch, stepHit, goToHit, info } = useStore();
   const [text, setText] = useState(search.query);
   const [matchCase, setMatchCase] = useState(search.matchCase);
+  const [wholeWord, setWholeWord] = useState(search.wholeWord);
+  const [recent, setRecent] = useState(getRecentSearches);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => { input.current?.focus(); input.current?.select(); }, []);
 
   const submit = () => {
     // Enter lần đầu (hoặc sau khi đổi chữ) thì tìm; các lần sau nhảy sang kết quả kế.
-    if (text === search.query && matchCase === search.matchCase && search.hits.length) stepHit(1);
-    else void runSearch(text, matchCase);
+    if (text === search.query && matchCase === search.matchCase && wholeWord === search.wholeWord && search.hits.length) stepHit(1);
+    else { void runSearch(text, matchCase, wholeWord); setRecent(getRecentSearches()); }
   };
 
   const status = !info ? "Chưa có tài liệu."
@@ -39,6 +42,17 @@ export function SearchPanel() {
       <label className="search-opt">
         <input type="checkbox" checked={matchCase} onChange={(e) => setMatchCase(e.target.checked)} /> Phân biệt hoa/thường
       </label>
+      <label className="search-opt">
+        <input type="checkbox" checked={wholeWord} onChange={(e) => setWholeWord(e.target.checked)} /> Khớp cả từ
+      </label>
+      {recent.length > 0 && !search.query && (
+        <div className="search-recent">
+          <p className="body">Tìm gần đây <button className="btn ghost" onClick={() => { clearRecentSearches(); setRecent([]); }}>Xoá</button></p>
+          <ul>{recent.map((q) => (
+            <li key={q}><button onClick={() => { setText(q); void runSearch(q, matchCase, wholeWord); setRecent(getRecentSearches()); }}>{q}</button></li>
+          ))}</ul>
+        </div>
+      )}
       <p className="search-status" role="status">{status}</p>
       <ul className="search-results">
         {search.hits.slice(0, 500).map((h, i) => (
