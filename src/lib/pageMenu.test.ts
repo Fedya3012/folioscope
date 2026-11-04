@@ -18,3 +18,11 @@ describe("menu trang", () => {
     expect(pageProperties({ ...p, source: null }, 1, 1).find(([k]) => k === "Nguồn")![1]).toBe("Trang trắng");
   });
 });
+
+import { siblingPath } from "../organizerStore";
+describe("đường dẫn gợi ý", () => {
+  it("đặt tên cạnh file gốc", () => {
+    expect(siblingPath("/a/b/sach.pdf", "_x")).toBe("/a/b/sach_x.pdf");
+    expect(siblingPath("C:\\d\\sach.PDF", "_x")).toBe("C:\\d\\sach_x.pdf");
+  });
+});

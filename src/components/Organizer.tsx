@@ -7,7 +7,7 @@ import { useOrganizer, type InsertSource } from "../organizerStore";
 import { bucketFor, cachedThumb } from "../lib/thumbs";
 import { dropIndex, gapAt, intersects, type PageItem, type Rect } from "../lib/organizer";
 import { CropShade, StampBadge, Thumb, tileBox } from "./PageThumb";
-import { CropDialog, NumberDialog, ReplaceDialog, SplitDialog } from "./OrganizerDialogs";
+import { CropDialog, NumberDialog, ReplaceDialog, SplitDialog, TransitionDialog } from "./OrganizerDialogs";
 import { openPageMenu, pageProperties } from "../lib/pageMenu";
 
 const THUMB_MIN = 96;
@@ -34,7 +34,7 @@ export function Organizer() {
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [indicator, setIndicator] = useState<{ left: number; top: number; height: number } | null>(null);
   const [menu, setMenu] = useState(false);
-  const [dialog, setDialog] = useState<"split" | "crop" | "number" | "replace" | null>(null);
+  const [dialog, setDialog] = useState<"split" | "crop" | "number" | "replace" | "transition" | null>(null);
   const [props, setProps] = useState<string | null>(null);
   /** Khe đang được trỏ tới (hiện nút "+") và menu chèn của khe đó. */
   const [plus, setPlus] = useState<{ at: number; x: number; y: number } | null>(null);
@@ -148,6 +148,7 @@ export function Organizer() {
       copy: () => void copyPages(),
       smaller: () => st.setThumb(Math.max(THUMB_MIN, st.thumb - 24)), larger: () => st.setThumb(Math.min(THUMB_MAX, st.thumb + 24)),
       properties: () => setProps(id),
+      transitions: () => setDialog("transition"), embedThumbs: (embed) => void st.embedThumbs(embed),
     });
   };
 
@@ -411,6 +412,7 @@ export function Organizer() {
           </div>
         );
       })()}
+      {dialog === "transition" && <TransitionDialog count={n} onSubmit={o.transitions} onClose={() => setDialog(null)} />}
       {dialog === "split" && <SplitDialog total={items.length} onClose={() => setDialog(null)} />}
       {dialog === "crop" && <CropDialog onClose={() => setDialog(null)} />}
       {dialog === "number" && <NumberDialog onClose={() => setDialog(null)} />}

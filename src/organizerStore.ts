@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
-  COMBINE_EXTENSIONS, exportPages, fileSize, getOutline, openDocument, pickFolder, pickSavePath, preparePdf,
+  COMBINE_EXTENSIONS, exportPages, setEmbeddedThumbnails, setPageTransitions, fileSize, getOutline, openDocument, pickFolder, pickSavePath, preparePdf,
   saveClipboardImage, type DocumentInfo, type OutlineItem, type PageRef,
 } from "./lib/api";
 import {
@@ -96,6 +96,9 @@ interface OrganizerState {
 
   save(): Promise<string | null>;
   extract(): Promise<void>;
+  /** Hiệu ứng chuyển trang / hình thu nhỏ nhúng: chỉ khi thứ tự trang chưa đổi, vì ghi trực tiếp từ file gốc ra bản sao. */
+  transitions(style: string, duration: number, auto: number | null): Promise<boolean>;
+  embedThumbs(embed: boolean): Promise<boolean>;
   split(mode: "every" | "ranges" | "bookmarks" | "size", value: string): Promise<boolean>;
 }
 
@@ -331,6 +334,26 @@ export const useOrganizer = create<OrganizerState>((set, get) => {
         toast.success(`Đã trích ${picked.length} trang ra ${out}`);
       } catch (e) { fail(e); }
     },
+    async transitions(style, duration, auto) {
+      const { items, selected, basePath, history } = get();
+      if (!basePath || history.past.length) { toast.info("Hãy lưu thứ tự trang trước khi đặt hiệu ứng chuyển trang"); return false; }
+      const pages = items.map((p, i) => (selected.has(p.id) ? i : -1)).filter((i) => i >= 0);
+      if (!pages.length) return false;
+      const out = await pickSavePath(siblingPath(basePath, "_chuyen-trang"));
+      if (!out) return false;
+      try { await setPageTransitions(basePath, pages, { style: style === "none" ? null : style, duration, auto_advance: auto }, out); toast.success(`Đã lưu ${out}`); return true; }
+      catch (e) { toast.error(String(e)); return false; }
+    },
+    async embedThumbs(embed) {
+      const { basePath, history } = get();
+      if (!basePath || history.past.length) { toast.info("Hãy lưu thứ tự trang trước"); return false; }
+      const out = await pickSavePath(siblingPath(basePath, embed ? "_co-thumbnail" : "_bo-thumbnail"));
+      if (!out) return false;
+      set({ busy: true });
+      try { const n = await setEmbeddedThumbnails(basePath, embed, 105, out); toast.success(`${embed ? "Đã nhúng" : "Đã gỡ"} hình thu nhỏ của ${n} trang: ${out}`); return true; }
+      catch (e) { toast.error(String(e)); return false; }
+      finally { set({ busy: false }); }
+    },
     async split(mode, value) {
       const { items, basePath, hintPath } = get();
       if (!basePath || items.length === 0) return false;
@@ -384,4 +407,12 @@ async function blobToBase64(blob: Blob): Promise<string> {
   let bin = "";
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(bin);
+}
+
+/** Đường dẫn gợi ý cạnh file gốc: `<tên><hậu tố>.pdf`. */
+export function siblingPath(path: string, suffix: string): string {
+  const sep = path.includes("\\") ? "\\" : "/";
+  const i = path.lastIndexOf(sep);
+  const base = path.slice(i + 1).replace(/\.pdf$/i, "");
+  return `${path.slice(0, i + 1)}${base}${suffix}.pdf`;
 }
