@@ -8,6 +8,7 @@ import { bucketFor, cachedThumb } from "../lib/thumbs";
 import { dropIndex, gapAt, intersects, type PageItem, type Rect } from "../lib/organizer";
 import { CropShade, StampBadge, Thumb, tileBox } from "./PageThumb";
 import { CropDialog, NumberDialog, ReplaceDialog, SplitDialog } from "./OrganizerDialogs";
+import { openPageMenu, pageProperties } from "../lib/pageMenu";
 
 const THUMB_MIN = 96;
 const THUMB_MAX = 360;
@@ -34,6 +35,7 @@ export function Organizer() {
   const [indicator, setIndicator] = useState<{ left: number; top: number; height: number } | null>(null);
   const [menu, setMenu] = useState(false);
   const [dialog, setDialog] = useState<"split" | "crop" | "number" | "replace" | null>(null);
+  const [props, setProps] = useState<string | null>(null);
   /** Khe đang được trỏ tới (hiện nút "+") và menu chèn của khe đó. */
   const [plus, setPlus] = useState<{ at: number; x: number; y: number } | null>(null);
   const [plusMenu, setPlusMenu] = useState(false);
@@ -130,6 +132,36 @@ export function Organizer() {
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("keydown", key);
+  };
+
+  /** Chuột phải vào một trang: chọn trang đó (nếu chưa chọn) rồi mở menu theo bố cục Acrobat. */
+  const onTileMenu = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    if (!useOrganizer.getState().selected.has(id)) o.setSelection([id]);
+    const st = useOrganizer.getState();
+    const at = Math.max(...st.items.map((p, i) => (st.selected.has(p.id) ? i + 1 : 0)));
+    openPageMenu(e.clientX, e.clientY, {
+      count: st.selected.size, busy: st.busy,
+      insert: (kind) => { if (kind === "blank") st.insertBlank(at); else void st.insert(kind, at); },
+      extract: () => void st.extract(), replace: () => setDialog("replace"), remove: st.remove, crop: () => setDialog("crop"),
+      rotate: st.rotate, number: () => setDialog("number"),
+      copy: () => void copyPages(),
+      smaller: () => st.setThumb(Math.max(THUMB_MIN, st.thumb - 24)), larger: () => st.setThumb(Math.min(THUMB_MAX, st.thumb + 24)),
+      properties: () => setProps(id),
+    });
+  };
+
+  /** Chép các trang đã chọn thành ảnh vào clipboard (dán lại bằng Ctrl+V sẽ thành trang mới). */
+  const copyPages = async () => {
+    const st = useOrganizer.getState();
+    const first = st.items.find((p) => st.selected.has(p.id));
+    const src = first && first.source !== null ? cachedThumb(first.source, first.index, bucketFor(Math.round(st.thumb * 2))) ?? cachedThumb(first.source, first.index, bucketFor(st.thumb)) : null;
+    if (!src) { toast.info("Trang này chưa có ảnh để sao chép"); return; }
+    try {
+      const blob = await (await fetch(src)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
+      toast.success(st.selected.size > 1 ? "Đã sao chép ảnh trang đầu trong số đã chọn" : "Đã sao chép ảnh trang");
+    } catch { toast.error("Không sao chép được vào clipboard"); }
   };
 
   const onBackgroundDown = (e: React.PointerEvent) => {
@@ -314,6 +346,7 @@ export function Organizer() {
                 className={`otile${isSel ? " sel" : ""}${dragged?.has(p.id) ? " lifted" : ""}`}
                 style={{ width: bw }}
                 onPointerDown={(e) => onTileDown(e, p.id)}
+                onContextMenu={(e) => onTileMenu(e, p.id)}
               >
                 <div className="obox" style={{ width: bw, height: bh }}>
                   <Thumb item={p} bw={bw} bh={bh} />
@@ -365,6 +398,19 @@ export function Organizer() {
 
 
       {fileOver && <div className="org-dropnote" aria-hidden="true">Thả file vào chỗ có vạch xanh để chèn (PDF, ảnh, Word, Excel, PowerPoint)</div>}
+      {props && (() => {
+        const i = items.findIndex((p) => p.id === props);
+        if (i < 0) return null;
+        return (
+          <div className="modal-scrim" onPointerDown={() => setProps(null)}>
+            <div className="modal" role="dialog" aria-label="Thuộc tính trang" onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === "Escape") setProps(null); }}>
+              <h2>Thuộc tính trang {i + 1}</h2>
+              <dl className="page-props">{pageProperties(items[i], i + 1, items.length).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+              <div className="actions"><button className="btn primary" autoFocus onClick={() => setProps(null)}>Đóng</button></div>
+            </div>
+          </div>
+        );
+      })()}
       {dialog === "split" && <SplitDialog total={items.length} onClose={() => setDialog(null)} />}
       {dialog === "crop" && <CropDialog onClose={() => setDialog(null)} />}
       {dialog === "number" && <NumberDialog onClose={() => setDialog(null)} />}

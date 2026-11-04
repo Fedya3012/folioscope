@@ -93,3 +93,4 @@
 .oplus .org-popover { top: 30px; left: -12px; z-index: 41; }
 .org-scroll.file-over { outline: 2px dashed var(--primary); outline-offset: -6px; background-image: linear-gradient(color-mix(in srgb, var(--primary) 8%, transparent), color-mix(in srgb, var(--primary) 8%, transparent)); }
 .org-dropnote { position: absolute; left: 50%; top: 108px; transform: translateX(-50%); z-index: 60; padding: 8px 14px; border-radius: 10px; background: #1C2028; color: #ECEEF2; font-size: var(--fs-small); box-shadow: var(--e3); pointer-events: none; }
+.page-props { margin: 8px 0 16px; } .page-props div { display: flex; gap: 12px; padding: 4px 0; } .page-props dt { width: 120px; color: var(--text-secondary); flex: none; } .page-props dd { margin: 0; }

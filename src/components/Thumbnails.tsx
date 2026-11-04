@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { renderPage } from "../lib/api";
 import { useStore } from "../store";
+import { useCtxMenu } from "../lib/ctxMenu";
 
 const THUMB_W = 140;
 const cache = new Map<string, string>(); // "đường dẫn#trang" → ảnh, để cuộn qua lại không vẽ lại
@@ -42,7 +43,15 @@ function Thumb({ path, index, size }: { path: string; index: number; size: [numb
   }, [current]);
 
   return (
-    <button ref={ref} className="thumb" aria-current={current} aria-label={`Trang ${index + 1}`} onClick={() => goToPage(index)}>
+    <button ref={ref} className="thumb" aria-current={current} aria-label={`Trang ${index + 1}`} onClick={() => goToPage(index)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        useCtxMenu.getState().open(e.clientX, e.clientY, [
+          { label: `Đi tới trang ${index + 1}`, run: () => goToPage(index) },
+          { sep: true },
+          { label: "Mở chế độ Trang (chèn, xoá, xoay, cắt, trích xuất…)", run: () => { goToPage(index); useStore.getState().setMode("pages"); } },
+        ]);
+      }}>
       <span className={`thumb-img${src ? "" : " loading"}`} style={{ width: THUMB_W, height: h }}>
         {src && <img src={src} width={THUMB_W} height={h} alt="" draggable={false} />}
       </span>
