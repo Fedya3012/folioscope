@@ -29,6 +29,8 @@ export type PageMenuActions = {
   smaller(): void;
   larger(): void;
   properties(): void;
+  transitions(): void;
+  embedThumbs(embed: boolean): void;
 };
 
 const soon = (what: string) => () => toast.info(`${what}: chưa có trong bản này`);
@@ -49,7 +51,7 @@ export function openPageMenu(x: number, y: number, a: PageMenuActions) {
     { label: `Cắt lề ${L}…`, disabled: off, run: a.crop },
     { label: "Xoay phải", hint: "Ctrl+Shift+=", disabled: off, run: () => a.rotate(90) },
     { label: "Xoay trái", hint: "Ctrl+Shift+-", disabled: off, run: () => a.rotate(-90) },
-    { label: "Chuyển trang (Page Transitions)…", run: soon("Hiệu ứng chuyển trang") },
+    { label: "Chuyển trang (Page Transitions)…", disabled: off, run: a.transitions },
     { sep: true },
     { label: `Sao chép ${L} (ảnh)`, hint: "Ctrl+C", run: a.copy },
     { sep: true },
@@ -57,8 +59,8 @@ export function openPageMenu(x: number, y: number, a: PageMenuActions) {
     { sep: true },
     { label: `In ${L}…`, hint: "Ctrl+P", run: soon("In trang") },
     { sep: true },
-    { label: "Nhúng hình thu nhỏ vào file", run: soon("Nhúng hình thu nhỏ") },
-    { label: "Gỡ hình thu nhỏ đã nhúng", run: soon("Gỡ hình thu nhỏ đã nhúng") },
+    { label: "Nhúng hình thu nhỏ vào file…", disabled: off, run: () => a.embedThumbs(true) },
+    { label: "Gỡ hình thu nhỏ đã nhúng…", disabled: off, run: () => a.embedThumbs(false) },
     { sep: true },
     { label: "Thu nhỏ hình thu nhỏ", run: a.smaller },
     { label: "Phóng to hình thu nhỏ", run: a.larger },

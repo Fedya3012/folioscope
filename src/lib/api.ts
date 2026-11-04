@@ -107,6 +107,12 @@ export type PageRef = {
 export const exportPages = (pages: PageRef[], output: string) =>
   invoke<number>("export_pages", { pages, output });
 
+export type TransitionSpec = { style: string | null; duration: number; auto_advance: number | null };
+export const setPageTransitions = (path: string, pages: number[], spec: TransitionSpec, output: string) =>
+  invoke<number>("set_page_transitions", { path, pages, spec, output });
+export const setEmbeddedThumbnails = (path: string, embed: boolean, width: number | null, output: string) =>
+  invoke<number>("set_embedded_thumbnails", { path, embed, width, output });
+
 export async function pickSavePath(defaultPath: string): Promise<string | null> {
   return save({ defaultPath, filters: [{ name: "PDF", extensions: ["pdf"] }] });
 }

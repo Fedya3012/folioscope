@@ -221,3 +221,49 @@ export function ReplaceDialog({ onClose }: { onClose: () => void }) {
     </Dialog>
   );
 }
+
+export const TRANSITION_STYLES: [string, string][] = [
+  ["none", "Không có"], ["Fade", "Mờ dần (Fade)"], ["Dissolve", "Tan biến (Dissolve)"], ["Wipe", "Quét (Wipe)"], ["Push", "Đẩy (Push)"],
+  ["Cover", "Phủ lên (Cover)"], ["Uncover", "Mở ra (Uncover)"], ["Split", "Tách đôi (Split)"], ["Blinds", "Mành (Blinds)"],
+  ["Box", "Hộp (Box)"], ["Glitter", "Lấp lánh (Glitter)"], ["Fly", "Bay (Fly)"], ["R", "Thay thế (R)"],
+];
+
+/** Chọn hiệu ứng chuyển trang cho các trang đã chọn (dùng khi trình chiếu toàn màn hình), rồi ghi ra bản sao. */
+export function TransitionDialog({ count, onSubmit, onClose }: {
+  count: number; onSubmit: (style: string, duration: number, autoAdvance: number | null) => Promise<boolean>; onClose: () => void;
+}) {
+  const [style, setStyle] = useState("Fade");
+  const [duration, setDuration] = useState("1");
+  const [auto, setAuto] = useState(false);
+  const [secs, setSecs] = useState("5");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    const d = num(duration), a = num(secs);
+    if (!(d >= 0) || (auto && !(a > 0))) return;
+    setBusy(true);
+    const ok = await onSubmit(style, d, auto ? a : null);
+    setBusy(false);
+    if (ok) onClose();
+  };
+  return (
+    <Dialog title="Chuyển trang" label="Hiệu ứng chuyển trang" onClose={onClose} onSubmit={() => void submit()}>
+      <p className="muted">Áp dụng cho {count} trang đã chọn và lưu thành bản sao mới. Hiệu ứng chỉ thấy khi trình chiếu toàn màn hình trong trình đọc PDF hỗ trợ.</p>
+      <label className="radio">Kiểu
+        <select className="inp" value={style} onChange={(e) => setStyle(e.target.value)} aria-label="Kiểu chuyển trang" autoFocus>
+          {TRANSITION_STYLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </label>
+      <label className="radio">Thời gian
+        <input className="inp" value={duration} disabled={style === "none"} onChange={(e) => setDuration(e.target.value)} aria-label="Thời gian hiệu ứng (giây)" /> giây
+      </label>
+      <label className="radio">
+        <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Tự lật sau
+        <input className="inp" value={secs} disabled={!auto} onChange={(e) => setSecs(e.target.value)} aria-label="Tự lật sau (giây)" /> giây
+      </label>
+      <div className="modal-actions">
+        <button className="btn ghost" onClick={onClose}>Huỷ</button>
+        <button className="btn primary" onClick={() => void submit()} disabled={busy}>{busy ? "Đang ghi…" : "Chọn nơi lưu và áp dụng"}</button>
+      </div>
+    </Dialog>
+  );
+}
