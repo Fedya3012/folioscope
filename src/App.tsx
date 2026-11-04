@@ -22,6 +22,7 @@ import { loadKeymap } from "./lib/keymap";
 import { routeDrop } from "./lib/recent";
 import { installShortcuts } from "./lib/shortcuts";
 import { registerAppCommands } from "./appCommands";
+import { startRecovery } from "./lib/recovery";
 import { Toaster } from "./components/Toaster";
 import { ContextMenu } from "./components/ContextMenu";
 import { PAGE_THEME_LABEL, nextPageTheme, parsePageInput } from "./lib/viewer";
@@ -84,6 +85,7 @@ export function App() {
 
   // Một bộ nghe phím duy nhất; các lệnh nằm ở appCommands.ts (và mỗi màn hình đăng ký thêm lệnh của nó).
   useEffect(() => installShortcuts(), []);
+  useEffect(() => startRecovery(), []);
   useEffect(() => { const off = registerAppCommands(() => void openRef.current()); loadKeymap(); return off; }, []);
   const paletteOpen = usePalette((p) => p.open);
 

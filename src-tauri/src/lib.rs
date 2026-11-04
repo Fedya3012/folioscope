@@ -11,6 +11,7 @@ mod office_install;
 mod organizer;
 mod pageinfo;
 mod pdf;
+mod print;
 mod shell_menu;
 mod transform;
 mod viewer;
@@ -89,6 +90,7 @@ pub fn run() {
             shell_menu::shell_menu_install_modern,
             shell_menu::shell_menu_uninstall,
             organizer::export_pages,
+            print::print_pdf,
             pageinfo::set_page_transitions,
             pageinfo::set_embedded_thumbnails,
             db::db_load_all,

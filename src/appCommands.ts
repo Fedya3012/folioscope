@@ -10,6 +10,7 @@ import { useStore, type Mode } from "./store";
 import { savePath } from "./annotations/save";
 import { saveEdits } from "./edit/save";
 import { toast } from "./lib/toast";
+import { printDocument } from "./lib/printDoc";
 import { markSelection } from "./lib/viewerMenu";
 
 export const GOTO_INPUT_ID = "folioscope-goto-page";
@@ -53,6 +54,7 @@ export function registerAppCommands(openFile: () => void): () => void {
     { id: "tool.select", label: "Công cụ Chọn chữ", group: "Xem", keys: ["V"], when: inView, run: () => st().setTool("select") },
     { id: "search.next", label: "Kết quả tìm tiếp theo", group: "Tìm kiếm", keys: ["F3", "Mod+G"], typing: "allow", when: () => st().search.hits.length > 0, run: () => st().stepHit(1) },
     { id: "search.prev", label: "Kết quả tìm trước đó", group: "Tìm kiếm", keys: ["Shift+F3", "Mod+Shift+G"], typing: "allow", when: () => st().search.hits.length > 0, run: () => st().stepHit(-1) },
+    { id: "file.print", label: "In…", group: "Tệp", keys: ["Mod+P"], typing: "allow", when: hasDoc, run: () => { void printDocument(); } },
     { id: "file.open", label: "Mở file…", group: "Tệp", keys: ["Mod+O"], typing: "allow", run: openFile },
     { id: "convert.open", label: "Chuyển đổi file…", group: "Tệp", keys: [], typing: "allow", run: () => { window.dispatchEvent(new CustomEvent("folioscope:convert", { detail: "to_pdf" })); } },
     { id: "ocr.open", label: "OCR: nhận dạng chữ…", group: "Tệp", keys: [], typing: "allow", run: () => { window.dispatchEvent(new CustomEvent("folioscope:convert", { detail: "ocr" })); } },
