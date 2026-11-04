@@ -107,6 +107,8 @@ export type PageRef = {
 export const exportPages = (pages: PageRef[], output: string) =>
   invoke<number>("export_pages", { pages, output });
 
+export const printPdf = (path: string) => invoke<void>("print_pdf", { path });
+
 export type TransitionSpec = { style: string | null; duration: number; auto_advance: number | null };
 export const setPageTransitions = (path: string, pages: number[], spec: TransitionSpec, output: string) =>
   invoke<number>("set_page_transitions", { path, pages, spec, output });

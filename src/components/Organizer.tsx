@@ -8,6 +8,7 @@ import { bucketFor, cachedThumb } from "../lib/thumbs";
 import { dropIndex, gapAt, intersects, type PageItem, type Rect } from "../lib/organizer";
 import { CropShade, StampBadge, Thumb, tileBox } from "./PageThumb";
 import { CropDialog, NumberDialog, ReplaceDialog, SplitDialog, TransitionDialog } from "./OrganizerDialogs";
+import { printDocument } from "../lib/printDoc";
 import { openPageMenu, pageProperties } from "../lib/pageMenu";
 
 const THUMB_MIN = 96;
@@ -148,7 +149,7 @@ export function Organizer() {
       copy: () => void copyPages(),
       smaller: () => st.setThumb(Math.max(THUMB_MIN, st.thumb - 24)), larger: () => st.setThumb(Math.min(THUMB_MAX, st.thumb + 24)),
       properties: () => setProps(id),
-      transitions: () => setDialog("transition"), embedThumbs: (embed) => void st.embedThumbs(embed),
+      print: () => void printDocument(), transitions: () => setDialog("transition"), embedThumbs: (embed) => void st.embedThumbs(embed),
     });
   };
 

@@ -1,5 +1,4 @@
 import { useCtxMenu, tidyItems, type MenuItem } from "./ctxMenu";
-import { toast } from "./toast";
 import type { PageItem } from "./organizer";
 
 /** Số trang (từ 1) thành chuỗi mô tả ngắn: "3", "3, 5" hoặc "3 trang". */
@@ -30,10 +29,10 @@ export type PageMenuActions = {
   larger(): void;
   properties(): void;
   transitions(): void;
+  print(): void;
   embedThumbs(embed: boolean): void;
 };
 
-const soon = (what: string) => () => toast.info(`${what}: chưa có trong bản này`);
 
 /** Menu chuột phải của hình thu nhỏ trang, theo bố cục của Acrobat. */
 export function openPageMenu(x: number, y: number, a: PageMenuActions) {
@@ -57,7 +56,7 @@ export function openPageMenu(x: number, y: number, a: PageMenuActions) {
     { sep: true },
     { label: "Đánh số trang…", disabled: off, run: a.number },
     { sep: true },
-    { label: `In ${L}…`, hint: "Ctrl+P", run: soon("In trang") },
+    { label: "In tài liệu…", hint: "Ctrl+P", run: a.print },
     { sep: true },
     { label: "Nhúng hình thu nhỏ vào file…", disabled: off, run: () => a.embedThumbs(true) },
     { label: "Gỡ hình thu nhỏ đã nhúng…", disabled: off, run: () => a.embedThumbs(false) },
